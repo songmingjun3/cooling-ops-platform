@@ -678,6 +678,37 @@ async function main() {
         })()`);
         record('D6 采集后卡片显示采集时间', collected === true);
 
+        /*
+         * 回归用例：设备详情走的是 /api/devices/{id}，与监控页的
+         * /api/monitor/devices/{id} 是两条链路，曾经漏回查 sensor_data，
+         * 导致详情页「采集时间」列恒为空。
+         */
+        await openTab('device');
+        await waitFor('__t.count("#deviceTbody tr") > 0 && !__t.hasText("#deviceTbody", "加载中")', 8000);
+        await js('__t.click("#deviceTbody [data-action=\\"detail\\"]")');
+        await waitFor('__t.visible("#detailModal")', 5000);
+        const detailTimes = await js(`(function () {
+            var times = __t.qa('#detailBody .sensor-table tbody tr').map(function (tr) {
+                return tr.children[3] ? tr.children[3].textContent.trim() : '';
+            });
+            var infoTime = '';
+            __t.qa('#detailBody .info-item').forEach(function (item) {
+                var k = item.querySelector('.k');
+                if (k && k.textContent.indexOf('最近采集') >= 0) {
+                    infoTime = (item.querySelector('.v') || {}).textContent || '';
+                }
+            });
+            return {times: times, infoTime: infoTime.trim()};
+        })()`);
+        const timePattern = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+        record('D7 设备详情展示每个参数的采集时间',
+            detailTimes.times.length > 0
+            && detailTimes.times.every((t) => timePattern.test(t))
+            && timePattern.test(detailTimes.infoTime),
+            JSON.stringify(detailTimes));
+        await js('__t.click("#detailModal [data-close]")');
+        await waitFor('__t.hidden("#detailModal")');
+
         /* ==================== E. 告警管理 ==================== */
         section('E 告警管理 AM-01~05');
         await openTab('alarm');

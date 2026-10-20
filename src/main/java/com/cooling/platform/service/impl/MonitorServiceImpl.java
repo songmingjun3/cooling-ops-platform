@@ -16,7 +16,6 @@ import com.cooling.platform.service.AlarmService;
 import com.cooling.platform.service.MonitorService;
 import com.cooling.platform.vo.CollectResultVO;
 import com.cooling.platform.vo.DeviceDetailVO;
-import com.cooling.platform.vo.SensorVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,9 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -89,30 +86,8 @@ public class MonitorServiceImpl implements MonitorService {
     public DeviceDetailVO realtime(String deviceId) {
         Device device = requireDevice(deviceId);
         DeviceDetailVO vo = deviceConverter.toDetailVO(device);
-
-        // 用最新一次采集值覆盖参数值，并补齐采集时间
-        List<SensorData> latest = sensorDataMapper.selectLatestByDevice(device.getDeviceId());
-        if (latest.isEmpty()) {
-            return vo;
-        }
-        Map<String, SensorData> latestMap = new HashMap<>(latest.size());
-        for (SensorData data : latest) {
-            latestMap.putIfAbsent(data.getSensorKey(), data);
-        }
-        List<SensorVO> sensors = vo.getSensors();
-        LocalDateTime lastCollectTime = null;
-        for (SensorVO sensorVO : sensors) {
-            SensorData data = latestMap.get(sensorVO.getKey());
-            if (data != null) {
-                sensorVO.setValue(data.getValue());
-                sensorVO.setCollectTime(data.getCollectTime());
-                if (data.getCollectTime() != null
-                        && (lastCollectTime == null || data.getCollectTime().isAfter(lastCollectTime))) {
-                    lastCollectTime = data.getCollectTime();
-                }
-            }
-        }
-        vo.setLastCollectTime(lastCollectTime);
+        // 用最新一次采集值覆盖参数值，并补齐每个参数与整体的采集时间
+        deviceConverter.applyLatestSensors(vo, sensorDataMapper.selectLatestByDevice(device.getDeviceId()));
         return vo;
     }
 

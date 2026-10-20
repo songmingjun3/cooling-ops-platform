@@ -255,7 +255,7 @@ class CoolingPlatformFlowTest {
 
     @Test
     @Order(9)
-    @DisplayName("MM-01 实时状态反映最新采集值与采集时间")
+    @DisplayName("MM-01 实时状态与设备详情均反映最新采集值与采集时间")
     void shouldReflectLatestValue() throws IOException {
         JsonNode detail = get("/api/monitor/devices/" + probeId).get("data");
         assertFalse(detail.get("lastCollectTime").isNull(), "采集后应有最后采集时间");
@@ -267,6 +267,18 @@ class CoolingPlatformFlowTest {
             double max = sensor.get("maxValue").asDouble();
             assertTrue(value >= min && value <= max,
                     sensor.get("name").asText() + " 采集值 " + value + " 应落在模拟区间 [" + min + ", " + max + "]");
+        }
+
+        /*
+         * 设备详情（FM-05，/api/devices/{id}）走的是另一条链路：
+         * 早期只把 device.params 转成 VO，没有回查 sensor_data，
+         * 导致详情页「采集时间」列恒为空。此处固定该回归点。
+         */
+        JsonNode deviceDetail = get("/api/devices/" + probeId).get("data");
+        assertTrue(deviceDetail.hasNonNull("lastCollectTime"), "设备详情应返回最近采集时间");
+        for (JsonNode sensor : deviceDetail.get("sensors")) {
+            assertTrue(sensor.hasNonNull("collectTime"),
+                    "设备详情中参数「" + sensor.get("name").asText() + "」应带采集时间");
         }
     }
 

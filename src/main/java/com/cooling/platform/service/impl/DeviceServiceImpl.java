@@ -14,6 +14,7 @@ import com.cooling.platform.entity.DevicePO;
 import com.cooling.platform.factory.DeviceFactory;
 import com.cooling.platform.factory.DeviceIdGenerator;
 import com.cooling.platform.mapper.DeviceMapper;
+import com.cooling.platform.mapper.SensorDataMapper;
 import com.cooling.platform.service.DeviceService;
 import com.cooling.platform.vo.DeviceDetailVO;
 import com.cooling.platform.vo.DeviceVO;
@@ -45,6 +46,8 @@ public class DeviceServiceImpl implements DeviceService {
 
     private final DeviceIdGenerator deviceIdGenerator;
 
+    private final SensorDataMapper sensorDataMapper;
+
     /**
      * 构造业务实现。
      *
@@ -52,15 +55,18 @@ public class DeviceServiceImpl implements DeviceService {
      * @param deviceFactory     设备工厂
      * @param deviceConverter   对象转换器
      * @param deviceIdGenerator 编号生成器
+     * @param sensorDataMapper  采集数据访问接口（详情页补齐采集时间）
      */
     public DeviceServiceImpl(DeviceMapper deviceMapper,
                              DeviceFactory deviceFactory,
                              DeviceConverter deviceConverter,
-                             DeviceIdGenerator deviceIdGenerator) {
+                             DeviceIdGenerator deviceIdGenerator,
+                             SensorDataMapper sensorDataMapper) {
         this.deviceMapper = deviceMapper;
         this.deviceFactory = deviceFactory;
         this.deviceConverter = deviceConverter;
         this.deviceIdGenerator = deviceIdGenerator;
+        this.sensorDataMapper = sensorDataMapper;
     }
 
     @Override
@@ -80,7 +86,15 @@ public class DeviceServiceImpl implements DeviceService {
 
     @Override
     public DeviceDetailVO detail(String deviceId) {
-        return deviceConverter.toDetailVO(requireDevice(deviceId));
+        Device device = requireDevice(deviceId);
+        DeviceDetailVO vo = deviceConverter.toDetailVO(device);
+        /*
+         * 详情页展示的是「当前运行参数」，值和时间都应以最新一次采集为准。
+         * device.params 里只有数值没有时间戳，因此这里回到 sensor_data 补齐，
+         * 否则前端「采集时间」列恒为空（设备从未采集过时才会真的没有时间）。
+         */
+        deviceConverter.applyLatestSensors(vo, sensorDataMapper.selectLatestByDevice(device.getDeviceId()));
+        return vo;
     }
 
     @Override

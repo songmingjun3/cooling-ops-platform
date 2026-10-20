@@ -367,6 +367,7 @@
                 ['设备类型', d.deviceTypeLabel],
                 ['所属区域', d.zone],
                 ['运行状态', d.statusLabel],
+                ['最近采集', d.lastCollectTime],
                 ['生产厂商', d.manufacturer],
                 ['设备型号', d.model],
                 ['安装日期', d.installDate],
@@ -383,12 +384,16 @@
             }).join('');
 
             var sensorRows = (d.sensors || []).map(function (s) {
+                // 从未采集过的设备没有时间戳，明确写「未采集」而不是留一个短横线
+                var collectTime = s.collectTime
+                    ? escapeHtml(s.collectTime)
+                    : '<span class="hint">未采集</span>';
                 return '<tr>'
                     + '<td>' + escapeHtml(s.name) + '</td>'
                     + '<td class="' + (s.outOfRange ? 'out-of-range' : '') + '">'
                     + s.value.toFixed(1) + ' ' + escapeHtml(s.unit) + '</td>'
                     + '<td>' + s.minValue + ' ~ ' + s.maxValue + ' ' + escapeHtml(s.unit) + '</td>'
-                    + '<td>' + escapeHtml(dash(s.collectTime)) + '</td>'
+                    + '<td>' + collectTime + '</td>'
                     + '</tr>';
             }).join('');
 

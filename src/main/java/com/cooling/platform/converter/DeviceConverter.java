@@ -12,6 +12,7 @@ import com.cooling.platform.entity.Device;
 import com.cooling.platform.entity.DevicePO;
 import com.cooling.platform.entity.Pump;
 import com.cooling.platform.entity.Sensor;
+import com.cooling.platform.entity.SensorData;
 import com.cooling.platform.factory.DeviceFactory;
 import com.cooling.platform.vo.DeviceDetailVO;
 import com.cooling.platform.vo.DeviceVO;
@@ -22,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -169,6 +171,47 @@ public class DeviceConverter {
         vo.setSensors(sensors);
         vo.setSpecs(buildSpecs(device));
         return vo;
+    }
+
+    /**
+     * 用最新一次采集记录覆盖详情中的运行参数值，并回填每个参数的采集时间与整体最近采集时间。
+     *
+     * <p>详情里的参数初始值来自 {@code device.params}（采集任务会同步写入），
+     * 但 {@code params} 里没有时间戳，所以必须回到 {@code sensor_data} 取最新一行，
+     * 否则前端「采集时间」列只能显示空值。</p>
+     *
+     * @param vo     设备详情视图对象
+     * @param latest 该设备的最新采集记录（按参数取第一条）
+     * @return 最近一次采集时间；无采集记录时返回 {@code null}
+     */
+    public LocalDateTime applyLatestSensors(DeviceDetailVO vo, List<SensorData> latest) {
+        if (vo == null || vo.getSensors() == null || latest == null || latest.isEmpty()) {
+            return null;
+        }
+        Map<String, SensorData> latestMap = new LinkedHashMap<>(latest.size());
+        for (SensorData data : latest) {
+            if (data != null && data.getSensorKey() != null) {
+                // 同一参数可能返回多行，保留时间最新的第一条
+                latestMap.putIfAbsent(data.getSensorKey(), data);
+            }
+        }
+        LocalDateTime lastCollectTime = null;
+        for (SensorVO sensorVO : vo.getSensors()) {
+            SensorData data = latestMap.get(sensorVO.getKey());
+            if (data == null) {
+                continue;
+            }
+            if (data.getValue() != null) {
+                sensorVO.setValue(data.getValue());
+            }
+            sensorVO.setCollectTime(data.getCollectTime());
+            if (data.getCollectTime() != null
+                    && (lastCollectTime == null || data.getCollectTime().isAfter(lastCollectTime))) {
+                lastCollectTime = data.getCollectTime();
+            }
+        }
+        vo.setLastCollectTime(lastCollectTime);
+        return lastCollectTime;
     }
 
     // ------------------------------------------------------------------
