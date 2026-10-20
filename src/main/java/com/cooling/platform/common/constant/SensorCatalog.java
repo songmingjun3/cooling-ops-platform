@@ -71,9 +71,9 @@ public final class SensorCatalog {
                 new Definition("环境温度", "℃", 15.0, 38.0));
         map.put(key(DeviceType.COOLING_TOWER, "outletTemp"),
                 new Definition("出水温度", "℃", 18.0, 36.0));
-        // 水泵
+        // 水泵：流量额定 85 m³/h（见 alarm_threshold 中的波动阈值）
         map.put(key(DeviceType.PUMP, "flowRate"),
-                new Definition("当前流量", "m³/h", 40.0, 130.0));
+                new Definition("当前流量", "m³/h", 60.0, 110.0));
         // 精密空调：送风 18–27℃，回风 28–42℃
         map.put(key(DeviceType.COOLING_UNIT, "supplyTemp"),
                 new Definition("送风温度", "℃", 18.0, 27.0));

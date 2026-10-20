@@ -4,6 +4,7 @@ import com.cooling.platform.common.constant.DeviceConstants;
 import com.cooling.platform.common.enums.DeviceStatus;
 import com.cooling.platform.common.exception.BusinessException;
 import com.cooling.platform.common.response.PageResult;
+import com.cooling.platform.common.util.CsvExporter;
 import com.cooling.platform.converter.DeviceConverter;
 import com.cooling.platform.dto.DeviceCreateDTO;
 import com.cooling.platform.dto.DeviceQueryDTO;
@@ -143,14 +144,37 @@ public class DeviceServiceImpl implements DeviceService {
         return groups;
     }
 
+    @Override
+    public String exportCsv() {
+        List<DevicePO> rows = deviceMapper.selectAll();
+        String[] header = {"设备编号", "设备名称", "设备类型", "所属区域", "运行状态",
+                "生产厂商", "设备型号", "安装日期", "关键参数"};
+        List<String[]> data = new ArrayList<>(rows.size());
+        for (DevicePO row : rows) {
+            Device device = deviceConverter.toDevice(row);
+            data.add(new String[]{
+                    device.getDeviceId(),
+                    device.getDeviceName(),
+                    device.getDeviceType().getLabel(),
+                    device.getZone(),
+                    device.getStatus() == null ? "" : device.getStatus().getLabel(),
+                    device.getManufacturer(),
+                    device.getModel(),
+                    device.getInstallDate() == null ? "" : device.getInstallDate().toString(),
+                    device.getKeyParameterSummary()
+            });
+        }
+        log.info("导出设备清单: {} 条", data.size());
+        return CsvExporter.build(header, data);
+    }
+
     /**
      * 按编号取设备，不存在时抛出业务异常。
      *
      * @param deviceId 设备编号
      * @return 设备领域对象
      */
-    private Device requireDevice(String deviceId) {
-        if (deviceId == null || deviceId.trim().isEmpty()) {
+    private Device requireDevice(String deviceId) {        if (deviceId == null || deviceId.trim().isEmpty()) {
             throw new BusinessException(400, "设备编号不能为空");
         }
         DevicePO po = deviceMapper.selectById(deviceId.trim());

@@ -20,82 +20,251 @@
     </div>
 </header>
 
+<nav class="tabs">
+    <button class="tab active" data-tab="device">① 设备管理</button>
+    <button class="tab" data-tab="monitor">② 运行监控</button>
+    <button class="tab" data-tab="alarm">③ 告警管理</button>
+    <button class="tab" data-tab="analysis">④ 数据分析</button>
+</nav>
+
 <main class="container">
-    <!-- 查询条件 -->
-    <section class="card toolbar">
-        <div class="field">
-            <label for="qKeyword">关键字</label>
-            <input type="text" id="qKeyword" placeholder="设备编号 / 名称">
-        </div>
-        <div class="field">
-            <label for="qType">设备类型</label>
-            <select id="qType">
-                <option value="">全部</option>
-                <option value="CHILLER">冷水机组</option>
-                <option value="COOLING_TOWER">冷却塔</option>
-                <option value="PUMP">水泵</option>
-                <option value="COOLING_UNIT">精密空调</option>
-            </select>
-        </div>
-        <div class="field">
-            <label for="qZone">所属区域</label>
-            <select id="qZone"><option value="">全部</option></select>
-        </div>
-        <div class="field">
-            <label for="qStatus">运行状态</label>
-            <select id="qStatus">
-                <option value="">全部</option>
-                <option value="RUNNING">运行中</option>
-                <option value="STOPPED">已停机</option>
-                <option value="FAULT">故障</option>
-                <option value="MAINTENANCE">维护中</option>
-                <option value="OFFLINE">离线</option>
-            </select>
-        </div>
-        <div class="toolbar-actions">
-            <button class="btn btn-primary" id="btnSearch">查询</button>
-            <button class="btn" id="btnReset">重置</button>
-            <button class="btn btn-accent" id="btnCreate">+ 新增设备</button>
-        </div>
-    </section>
-
-    <!-- 设备清单 -->
-    <section class="card">
-        <div class="card-head">
-            <h2 id="listTitle">设备清单</h2>
-            <div class="seg-group">
-                <button class="seg active" data-view="list">列表视图</button>
-                <button class="seg" data-view="zone">按区域分组</button>
+    <!-- ==================== ① 设备管理 ==================== -->
+    <div class="tab-panel" id="tab-device">
+        <section class="card toolbar">
+            <div class="field">
+                <label for="qKeyword">关键字</label>
+                <input type="text" id="qKeyword" placeholder="设备编号 / 名称">
             </div>
-        </div>
-
-        <div id="listView">
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead>
-                    <tr>
-                        <th>设备编号</th>
-                        <th>设备名称</th>
-                        <th>类型</th>
-                        <th>区域</th>
-                        <th>状态</th>
-                        <th>关键参数</th>
-                        <th class="col-actions">操作</th>
-                    </tr>
-                    </thead>
-                    <tbody id="deviceTbody">
-                    <tr><td colspan="7" class="empty">加载中…</td></tr>
-                    </tbody>
-                </table>
+            <div class="field">
+                <label for="qType">设备类型</label>
+                <select id="qType">
+                    <option value="">全部</option>
+                    <option value="CHILLER">冷水机组</option>
+                    <option value="COOLING_TOWER">冷却塔</option>
+                    <option value="PUMP">水泵</option>
+                    <option value="COOLING_UNIT">精密空调</option>
+                </select>
             </div>
-            <div class="pager" id="pager"></div>
-        </div>
+            <div class="field">
+                <label for="qZone">所属区域</label>
+                <select id="qZone"><option value="">全部</option></select>
+            </div>
+            <div class="field">
+                <label for="qStatus">运行状态</label>
+                <select id="qStatus">
+                    <option value="">全部</option>
+                    <option value="RUNNING">运行中</option>
+                    <option value="STOPPED">已停机</option>
+                    <option value="FAULT">故障</option>
+                    <option value="MAINTENANCE">维护中</option>
+                    <option value="OFFLINE">离线</option>
+                </select>
+            </div>
+            <div class="toolbar-actions">
+                <button class="btn btn-primary" id="btnSearch">查询</button>
+                <button class="btn" id="btnReset">重置</button>
+                <a class="btn" href="/api/devices/export.csv">导出 CSV</a>
+                <button class="btn btn-accent" id="btnCreate">+ 新增设备</button>
+            </div>
+        </section>
 
-        <div id="zoneView" class="hidden"></div>
-    </section>
+        <section class="card">
+            <div class="card-head">
+                <h2 id="listTitle">设备清单</h2>
+                <div class="seg-group">
+                    <button class="seg active" data-view="list">列表视图</button>
+                    <button class="seg" data-view="zone">按区域分组</button>
+                </div>
+            </div>
+
+            <div id="listView">
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                        <tr>
+                            <th>设备编号</th>
+                            <th>设备名称</th>
+                            <th>类型</th>
+                            <th>区域</th>
+                            <th>状态</th>
+                            <th>关键参数</th>
+                            <th class="col-actions">操作</th>
+                        </tr>
+                        </thead>
+                        <tbody id="deviceTbody">
+                        <tr><td colspan="7" class="empty">加载中…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pager" id="pager"></div>
+            </div>
+
+            <div id="zoneView" class="hidden"></div>
+        </section>
+    </div>
+
+    <!-- ==================== ② 运行监控 ==================== -->
+    <div class="tab-panel hidden" id="tab-monitor">
+        <section class="card toolbar">
+            <div class="field">
+                <label>设备类型</label>
+                <div class="seg-group" id="monitorTypes">
+                    <button class="seg active" data-mtype="CHILLER">冷水机组</button>
+                    <button class="seg" data-mtype="COOLING_TOWER">冷却塔</button>
+                    <button class="seg" data-mtype="PUMP">水泵</button>
+                    <button class="seg" data-mtype="COOLING_UNIT">精密空调</button>
+                </div>
+            </div>
+            <div class="toolbar-actions">
+                <button class="btn" id="btnCollect">立即采集一次</button>
+                <button class="btn btn-primary" id="btnRefreshMonitor">刷新</button>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-head">
+                <h2 id="monitorTitle">设备运行状态</h2>
+                <span class="hint">采集周期 3 秒，仅运行中的设备参与采集</span>
+            </div>
+            <div id="monitorCards" class="zone-grid">
+                <p class="empty">加载中…</p>
+            </div>
+        </section>
+    </div>
+
+    <!-- ==================== ③ 告警管理 ==================== -->
+    <div class="tab-panel hidden" id="tab-alarm">
+        <section class="card">
+            <div class="card-head">
+                <h2>告警管理</h2>
+                <div class="seg-group">
+                    <button class="seg active" data-aview="list">告警记录</button>
+                    <button class="seg" data-aview="threshold">阈值配置</button>
+                </div>
+            </div>
+
+            <div id="alarmListView">
+                <div class="toolbar sub-toolbar">
+                    <div class="field">
+                        <label for="qAlarmStatus">处理状态</label>
+                        <select id="qAlarmStatus">
+                            <option value="">全部</option>
+                            <option value="UNHANDLED">未处理</option>
+                            <option value="HANDLED">已处理</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="qAlarmLevel">告警级别</label>
+                        <select id="qAlarmLevel">
+                            <option value="">全部</option>
+                            <option value="WARNING">警告</option>
+                            <option value="CRITICAL">严重</option>
+                        </select>
+                    </div>
+                    <div class="toolbar-actions">
+                        <button class="btn" id="btnRefreshAlarm">刷新</button>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                        <tr>
+                            <th>告警编号</th>
+                            <th>设备</th>
+                            <th>参数</th>
+                            <th>实际值</th>
+                            <th>级别</th>
+                            <th>状态</th>
+                            <th>触发时间</th>
+                            <th class="col-actions">操作</th>
+                        </tr>
+                        </thead>
+                        <tbody id="alarmTbody">
+                        <tr><td colspan="8" class="empty">加载中…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pager" id="alarmPager"></div>
+            </div>
+
+            <div id="thresholdView" class="hidden">
+                <div class="toolbar sub-toolbar">
+                    <span class="hint">阈值保存在数据库中，可随时调整；采集时据此自动判定告警</span>
+                    <div class="toolbar-actions">
+                        <button class="btn btn-accent" id="btnAddThreshold">+ 新增阈值</button>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                        <tr>
+                            <th>设备类型</th>
+                            <th>规则</th>
+                            <th>级别</th>
+                            <th>启用</th>
+                            <th>备注</th>
+                            <th class="col-actions">操作</th>
+                        </tr>
+                        </thead>
+                        <tbody id="thresholdTbody">
+                        <tr><td colspan="6" class="empty">加载中…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- ==================== ④ 数据分析 ==================== -->
+    <div class="tab-panel hidden" id="tab-analysis">
+        <section class="card">
+            <div class="card-head">
+                <h2>设备运行统计（AN-01）</h2>
+                <button class="btn" id="btnRefreshStat">刷新</button>
+            </div>
+            <div class="stat-cards" id="statCards"></div>
+            <div class="chart-row">
+                <div class="chart-box">
+                    <h4>按设备类型分布</h4>
+                    <div id="barByType" class="bar-list"></div>
+                </div>
+                <div class="chart-box">
+                    <h4>按运行状态分布</h4>
+                    <div id="barByStatus" class="bar-list"></div>
+                </div>
+                <div class="chart-box">
+                    <h4>按区域分布</h4>
+                    <div id="barByZone" class="bar-list"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-head">
+                <h2>运行参数趋势（AN-02）</h2>
+                <div class="toolbar sub-toolbar">
+                    <div class="field">
+                        <label for="trendDevice">设备</label>
+                        <select id="trendDevice"></select>
+                    </div>
+                    <div class="field">
+                        <label for="trendSensor">参数</label>
+                        <select id="trendSensor"></select>
+                    </div>
+                    <div class="toolbar-actions">
+                        <button class="btn btn-primary" id="btnTrend">查看趋势</button>
+                    </div>
+                </div>
+            </div>
+            <div id="trendChart" class="trend-chart">
+                <p class="empty">请选择设备与参数后点击「查看趋势」</p>
+            </div>
+            <p class="hint" id="trendMeta"></p>
+        </section>
+    </div>
 </main>
 
-<!-- 新增 / 编辑 弹窗 -->
+<!-- 新增 / 编辑 设备 -->
 <div class="modal hidden" id="formModal">
     <div class="modal-panel">
         <div class="modal-head">
@@ -146,7 +315,7 @@
     </div>
 </div>
 
-<!-- 详情弹窗 -->
+<!-- 设备详情 -->
 <div class="modal hidden" id="detailModal">
     <div class="modal-panel">
         <div class="modal-head">
@@ -160,8 +329,104 @@
     </div>
 </div>
 
+<!-- 处理告警 -->
+<div class="modal hidden" id="handleModal">
+    <div class="modal-panel">
+        <div class="modal-head">
+            <h3>处理告警</h3>
+            <button class="icon-btn" data-close="handleModal">×</button>
+        </div>
+        <div class="modal-body">
+            <p class="hint" id="handleAlarmInfo"></p>
+            <div class="form-grid">
+                <div class="field">
+                    <label for="hHandler">处理人 <em>*</em></label>
+                    <input type="text" id="hHandler" maxlength="30" placeholder="如 张工">
+                </div>
+                <div class="field field-wide">
+                    <label for="hMeasure">处理措施 <em>*</em></label>
+                    <input type="text" id="hMeasure" maxlength="200" placeholder="如 调整冷却塔风机转速并复测">
+                </div>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn" data-close="handleModal">取消</button>
+            <button class="btn btn-primary" id="btnSubmitHandle">提交</button>
+        </div>
+    </div>
+</div>
+
+<!-- 新增 / 编辑 阈值 -->
+<div class="modal hidden" id="thresholdModal">
+    <div class="modal-panel">
+        <div class="modal-head">
+            <h3 id="thresholdTitle">新增阈值</h3>
+            <button class="icon-btn" data-close="thresholdModal">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-grid">
+                <div class="field">
+                    <label for="tDeviceType">设备类型 <em>*</em></label>
+                    <select id="tDeviceType">
+                        <option value="CHILLER">冷水机组</option>
+                        <option value="COOLING_TOWER">冷却塔</option>
+                        <option value="PUMP">水泵</option>
+                        <option value="COOLING_UNIT">精密空调</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="tParamKey">监测参数 <em>*</em></label>
+                    <select id="tParamKey"></select>
+                </div>
+                <div class="field">
+                    <label for="tCompareOp">比较方式 <em>*</em></label>
+                    <select id="tCompareOp">
+                        <option value="GT">大于阈值</option>
+                        <option value="LT">小于阈值</option>
+                        <option value="DEVIATION">偏离额定值波动</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="tThresholdValue">阈值 / 额定值 <em>*</em></label>
+                    <input type="number" step="0.1" id="tThresholdValue">
+                </div>
+                <div class="field">
+                    <label for="tDeviationPercent">允许波动 (%)</label>
+                    <input type="number" step="1" id="tDeviationPercent" placeholder="仅波动检测需要">
+                </div>
+                <div class="field">
+                    <label for="tAlarmLevel">告警级别 <em>*</em></label>
+                    <select id="tAlarmLevel">
+                        <option value="WARNING">警告</option>
+                        <option value="CRITICAL">严重</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="tEnabled">是否启用</label>
+                    <select id="tEnabled">
+                        <option value="true">启用</option>
+                        <option value="false">停用</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="tRemark">备注</label>
+                    <input type="text" id="tRemark" maxlength="100">
+                </div>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn" data-close="thresholdModal">取消</button>
+            <button class="btn btn-primary" id="btnSaveThreshold">保存</button>
+        </div>
+    </div>
+</div>
+
 <div class="toast hidden" id="toast"></div>
 
+<script src="/js/common.js"></script>
 <script src="/js/device.js"></script>
+<script src="/js/monitor.js"></script>
+<script src="/js/alarm.js"></script>
+<script src="/js/analysis.js"></script>
 </body>
 </html>

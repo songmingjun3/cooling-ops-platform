@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cooling.platform.mapper.SensorDataMapper">
+
+    <insert id="insertBatch">
+        INSERT INTO sensor_data (device_id, sensor_key, sensor_name, value, unit, collect_time)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.deviceId}, #{item.sensorKey}, #{item.sensorName},
+             #{item.value}, #{item.unit}, #{item.collectTime})
+        </foreach>
+    </insert>
+
+    <!-- 每个 sensor_key 取 collect_time 最大的一条 -->
+    <select id="selectLatestByDevice" resultType="com.cooling.platform.entity.SensorData">
+        SELECT s.id, s.device_id, s.sensor_key, s.sensor_name, s.value, s.unit, s.collect_time
+        FROM sensor_data s
+        INNER JOIN (
+            SELECT sensor_key, MAX(collect_time) AS max_time
+            FROM sensor_data
+            WHERE device_id = #{deviceId}
+            GROUP BY sensor_key
+        ) latest ON s.sensor_key = latest.sensor_key AND s.collect_time = latest.max_time
+        WHERE s.device_id = #{deviceId}
+        ORDER BY s.id DESC
+    </select>
+
+    <select id="selectRecent" resultType="com.cooling.platform.entity.SensorData">
+        SELECT id, device_id, sensor_key, sensor_name, value, unit, collect_time
+        FROM sensor_data
+        WHERE device_id = #{deviceId}
+          AND sensor_key = #{sensorKey}
+        ORDER BY collect_time DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectSensorKeys" resultType="string">
+        SELECT DISTINCT sensor_key FROM sensor_data WHERE device_id = #{deviceId}
+    </select>
+
+    <delete id="deleteOlderThan">
+        DELETE FROM sensor_data WHERE collect_time &lt; #{cutoff}
+    </delete>
+
+</mapper>

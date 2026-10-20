@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS alarm_threshold (
     alarm_level       TEXT NOT NULL DEFAULT 'WARNING',
     enabled           INTEGER NOT NULL DEFAULT 1,
     remark            TEXT,
+    update_time       TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     UNIQUE (device_type, param_key, compare_op)
 );
 

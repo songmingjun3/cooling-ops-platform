@@ -10,6 +10,9 @@ import com.cooling.platform.vo.DeviceDetailVO;
 import com.cooling.platform.vo.DeviceVO;
 import com.cooling.platform.vo.ZoneGroupVO;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -119,5 +123,19 @@ public class DeviceController {
     public Result<Void> delete(@PathVariable String deviceId) {
         deviceService.delete(deviceId);
         return Result.ok();
+    }
+
+    /**
+     * 导出设备清单为 CSV（PM-04）。
+     *
+     * @return CSV 文件流（UTF-8 BOM，可直接用 Excel 打开）
+     */
+    @GetMapping("/export.csv")
+    public ResponseEntity<byte[]> exportCsv() {
+        byte[] content = deviceService.exportCsv().getBytes(StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"devices.csv\"")
+                .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8"))
+                .body(content);
     }
 }

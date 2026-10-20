@@ -63,4 +63,11 @@ public interface DeviceService {
      * @return 分组列表，按区域名升序
      */
     List<ZoneGroupVO> groupByZone();
+
+    /**
+     * 导出设备清单为 CSV 文本（PM-04）。
+     *
+     * @return CSV 文本（含 UTF-8 BOM）
+     */
+    String exportCsv();
 }

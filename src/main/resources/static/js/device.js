@@ -54,52 +54,12 @@
 
     /* ----------------------------- 工具函数 ----------------------------- */
 
-    function $(id) {
-        return document.getElementById(id);
-    }
-
-    function escapeHtml(text) {
-        if (text === null || text === undefined) {
-            return '';
-        }
-        return String(text)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
-    }
-
-    function dash(value) {
-        return value === null || value === undefined || value === '' ? '-' : value;
-    }
-
-    function toast(message, type) {
-        var el = $('toast');
-        el.textContent = message;
-        el.className = 'toast ' + (type || '');
-        setTimeout(function () {
-            el.className = 'toast hidden';
-        }, 2600);
-    }
-
-    /**
-     * 统一请求封装：解析 Result 结构，code 非 0 时抛出业务提示。
-     */
-    function request(url, options) {
-        var opts = options || {};
-        opts.headers = Object.assign({'Content-Type': 'application/json'}, opts.headers || {});
-        return fetch(url, opts).then(function (resp) {
-            if (!resp.ok) {
-                throw new Error('请求失败：HTTP ' + resp.status);
-            }
-            return resp.json();
-        }).then(function (body) {
-            if (body.code !== 0) {
-                throw new Error(body.message || '操作失败');
-            }
-            return body.data;
-        });
-    }
+    var App = window.App;
+    var $ = App.$;
+    var escapeHtml = App.escapeHtml;
+    var dash = App.dash;
+    var toast = App.toast;
+    var request = App.request;
 
     /* ----------------------------- 设备清单 ----------------------------- */
 

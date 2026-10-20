@@ -4,6 +4,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -27,4 +28,7 @@ public class DeviceDetailVO extends DeviceVO {
 
     /** 规格参数，属性名 → 带单位的显示值，如「制冷量」→「130.0 kW」。 */
     private Map<String, String> specs;
+
+    /** 最近一次采集时间，取各传感器采集时间的最大值；从未采集时为 null。 */
+    private LocalDateTime lastCollectTime;
 }

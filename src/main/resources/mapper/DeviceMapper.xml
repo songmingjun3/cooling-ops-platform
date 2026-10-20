@@ -51,6 +51,18 @@
         DELETE FROM device WHERE device_id = #{deviceId}
     </delete>
 
+    <update id="updateStatus">
+        UPDATE device
+        SET status = #{status}, update_time = datetime('now', 'localtime')
+        WHERE device_id = #{deviceId}
+    </update>
+
+    <update id="updateParams">
+        UPDATE device
+        SET params = #{params}, update_time = datetime('now', 'localtime')
+        WHERE device_id = #{deviceId}
+    </update>
+
     <delete id="deleteSensorDataByDevice">
         DELETE FROM sensor_data WHERE device_id = #{deviceId}
     </delete>

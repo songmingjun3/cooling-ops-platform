@@ -46,7 +46,7 @@ INSERT OR IGNORE INTO alarm_threshold
 ('CHILLER',       'currentLoad',            '当前负载率',     'GT',         0.95, NULL, NULL, 'WARNING',  1, '接近满载运行'),
 ('COOLING_TOWER', 'outletTemp',             '出水温度',       'GT',        35.0, NULL, '℃',   'WARNING',  1, '散热能力下降'),
 ('COOLING_TOWER', 'waterFlowRate',          '水流量',         'LT',        80.0, NULL, 'm³/h','WARNING',  1, '流量不足'),
-('PUMP',          'power',                  '当前功率',       'DEVIATION',  0.0, 20.0, 'kW',   'WARNING',  1, '功率相对额定值波动超过±20%'),
+('PUMP',          'flowRate',                '当前流量',       'DEVIATION', 85.0, 20.0, 'm³/h','WARNING',  1, '流量相对额定值 85 m³/h 波动超过±20%'),
 ('COOLING_UNIT',  'returnTemp',             '回风温度',       'GT',        40.0, NULL, '℃',   'WARNING',  1, '机房热负荷过高');
 
 -- ---------------------------------------------------------------------

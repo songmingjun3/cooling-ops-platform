@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cooling.platform.mapper.AlarmMapper">
+
+    <sql id="baseColumns">
+        id, alarm_no, device_id, device_name, param_key, param_name, actual_value, threshold_value,
+        alarm_level, message, status, trigger_time, handler, handle_time, handle_measure
+    </sql>
+
+    <sql id="conditionWhere">
+        <where>
+            <if test="q.status != null">
+                AND status = #{q.status}
+            </if>
+            <if test="q.alarmLevel != null">
+                AND alarm_level = #{q.alarmLevel}
+            </if>
+            <if test="q.deviceId != null and q.deviceId != ''">
+                AND device_id = #{q.deviceId}
+            </if>
+        </where>
+    </sql>
+
+    <insert id="insert" parameterType="com.cooling.platform.entity.Alarm"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO alarm (alarm_no, device_id, device_name, param_key, param_name, actual_value,
+                           threshold_value, alarm_level, message, status, trigger_time)
+        VALUES (#{alarmNo}, #{deviceId}, #{deviceName}, #{paramKey}, #{paramName}, #{actualValue},
+                #{thresholdValue}, #{alarmLevel}, #{message}, #{status}, #{triggerTime})
+    </insert>
+
+    <select id="selectById" resultType="com.cooling.platform.entity.Alarm">
+        SELECT <include refid="baseColumns"/>
+        FROM alarm WHERE id = #{id}
+    </select>
+
+    <update id="updateHandle">
+        UPDATE alarm
+        SET status = 'HANDLED',
+            handler = #{handler},
+            handle_time = #{handleTime},
+            handle_measure = #{handleMeasure}
+        WHERE id = #{id}
+          AND status = 'UNHANDLED'
+    </update>
+
+    <select id="selectByCondition" resultType="com.cooling.platform.entity.Alarm">
+        SELECT <include refid="baseColumns"/>
+        FROM alarm
+        <include refid="conditionWhere"/>
+        ORDER BY trigger_time DESC, id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByCondition" resultType="long">
+        SELECT COUNT(1) FROM alarm
+        <include refid="conditionWhere"/>
+    </select>
+
+    <select id="countByStatus" resultType="long">
+        SELECT COUNT(1) FROM alarm WHERE status = #{status}
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(1) FROM alarm
+    </select>
+
+    <select id="countRecentUnhandled" resultType="long">
+        SELECT COUNT(1)
+        FROM alarm
+        WHERE device_id = #{deviceId}
+          AND param_key = #{paramKey}
+          AND status = 'UNHANDLED'
+          AND trigger_time &gt;= datetime('now', 'localtime', '-' || #{minutes} || ' minutes')
+    </select>
+
+    <select id="selectMaxAlarmNo" resultType="string">
+        SELECT MAX(alarm_no) FROM alarm WHERE alarm_no LIKE #{prefix} || '%'
+    </select>
+
+</mapper>

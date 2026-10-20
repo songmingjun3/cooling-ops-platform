@@ -41,6 +41,9 @@ public class DeviceFactory {
      * @return 设备实例
      */
     public Device create(DeviceType type) {
+        if (type == null) {
+            throw new BusinessException(400, "设备类型不能为空");
+        }
         switch (type) {
             case CHILLER:
                 Chiller chiller = new Chiller();

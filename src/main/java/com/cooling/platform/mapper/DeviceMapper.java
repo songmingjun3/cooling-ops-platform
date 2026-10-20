@@ -44,6 +44,24 @@ public interface DeviceMapper {
     int deleteById(@Param("deviceId") String deviceId);
 
     /**
+     * 更新设备运行状态（MM-03 / MM-04）。
+     *
+     * @param deviceId 设备编号
+     * @param status   目标状态枚举名
+     * @return 影响行数
+     */
+    int updateStatus(@Param("deviceId") String deviceId, @Param("status") String status);
+
+    /**
+     * 更新设备专有属性 JSON（模拟采集写入最新量测值，MM-05）。
+     *
+     * @param deviceId 设备编号
+     * @param params   参数 JSON
+     * @return 影响行数
+     */
+    int updateParams(@Param("deviceId") String deviceId, @Param("params") String params);
+
+    /**
      * 按编号查询设备。
      *
      * @param deviceId 设备编号
