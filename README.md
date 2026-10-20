@@ -283,8 +283,8 @@ HTTP/JSON ──► DeviceCreateDTO.params(Map)
 
 ```bash
 # 1. 克隆仓库
-git clone <repository-url>
-cd 大数据冷却系统运维平台
+git clone https://github.com/songmingjun3/cooling-ops-platform.git
+cd cooling-ops-platform
 
 # 2. 编译打包（首次会下载依赖）
 mvn clean package -DskipTests
@@ -297,7 +297,7 @@ java -jar target/cooling-ops-platform.jar
 
 启动成功后：
 
-- 主界面：<http://localhost:8080/>（设备清单、按区域分组、新增 / 编辑 / 删除 / 详情）
+- 主界面：<http://localhost:8080/>（运行总览、设备管理、运行监控、告警管理、数据分析五个页签）
 - 接口示例：<http://localhost:8080/api/devices?pageSize=5>
 - 数据库文件：`./data/cooling-ops.db`（首次启动自动创建，含 12 台示例设备）
 - 运行日志：`./logs/cooling-ops.log`
