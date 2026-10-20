@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:sqlite:./data/cooling-ops-dev.db
+
+logging:
+  level:
+    com.cooling.platform: debug
+
+cooling:
+  acquisition:
+    interval: 3000

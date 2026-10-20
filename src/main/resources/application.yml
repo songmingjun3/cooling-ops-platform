@@ -1,0 +1,66 @@
+server:
+  port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+spring:
+  application:
+    name: cooling-ops-platform
+  profiles:
+    active: dev
+  datasource:
+    driver-class-name: org.sqlite.JDBC
+    # SQLite 为文件型数据库，无需安装服务端；相对路径基于启动时的工作目录
+    url: jdbc:sqlite:./data/cooling-ops.db
+    hikari:
+      # SQLite 为单写者模型，连接池设为 1 可避免 SQLITE_BUSY(write lock) 冲突
+      maximum-pool-size: 1
+      minimum-idle: 1
+      pool-name: sqlite-pool
+      connection-timeout: 30000
+  sql:
+    init:
+      # SQLite 不属于 Spring 判定的嵌入式库，需显式指定 always
+      mode: always
+      encoding: UTF-8
+      schema-locations: classpath:db/schema.sql
+      data-locations: classpath:db/data.sql
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    default-property-inclusion: non_null
+  mvc:
+    format:
+      date: yyyy-MM-dd
+      date-time: yyyy-MM-dd HH:mm:ss
+
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.cooling.platform.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    default-statement-timeout: 30
+
+logging:
+  level:
+    root: info
+    com.cooling.platform: debug
+    com.cooling.platform.mapper: debug
+
+# ---------- 业务自定义配置 ----------
+cooling:
+  # 模拟数据采集任务（MM-05）
+  acquisition:
+    enabled: true
+    interval: 3000          # 采集间隔（毫秒）
+    keep-days: 7            # 运行数据保留天数，超期自动清理
+  # 告警
+  alarm:
+    auto-detect: true       # 采集后自动检测阈值（AM-02）
+    max-per-device: 5       # 同一设备同一参数连续告警的抑制条数
+  # 数据导出目录（PM-04）
+  export:
+    dir: ./export
