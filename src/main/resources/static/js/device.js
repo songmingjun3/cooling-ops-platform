@@ -200,10 +200,15 @@
         container.innerHTML = '<div class="zone-grid">' + groups.map(function (group) {
             var items = group.devices.map(function (d) {
                 return '<li data-action="detail" data-id="' + escapeHtml(d.deviceId) + '">'
+                    + '<div class="zone-line">'
                     + '<span class="dev-id">' + escapeHtml(d.deviceId) + '</span>'
+                    + '<span class="badge badge-' + escapeHtml(d.status) + '">'
+                    + escapeHtml(dash(d.statusLabel)) + '</span>'
+                    + '</div>'
+                    + '<div class="zone-line">'
                     + '<span class="dev-name">' + escapeHtml(d.deviceName) + '</span>'
-                    + '<span class="badge badge-' + escapeHtml(d.status) + '">' + escapeHtml(dash(d.statusLabel)) + '</span>'
                     + '<span class="dev-sum">' + escapeHtml(dash(d.keyParameterSummary)) + '</span>'
+                    + '</div>'
                     + '</li>';
             }).join('');
             return '<div class="zone-card">'

@@ -37,6 +37,8 @@
             .then(function (page) {
                 renderAlarmRows(page.list);
                 renderAlarmPager(page);
+                /* 顺带刷新左侧导航的未处理告警计数 */
+                App.refreshAlarmBadge();
             })
             .catch(function (err) {
                 tbody.innerHTML = '<tr><td colspan="8" class="empty">' + escapeHtml(err.message) + '</td></tr>';
@@ -56,7 +58,8 @@
                 : '<span class="hint">' + escapeHtml(dash(a.handler)) + '</span>';
             return '<tr>'
                 + '<td class="mono">' + escapeHtml(a.alarmNo) + '</td>'
-                + '<td>' + escapeHtml(a.deviceName) + '<span class="hint"> ' + escapeHtml(a.deviceId) + '</span></td>'
+                + '<td><div class="cell-main">' + escapeHtml(a.deviceName) + '</div>'
+                + '<div class="cell-sub mono">' + escapeHtml(a.deviceId) + '</div></td>'
                 + '<td>' + escapeHtml(a.paramName) + '</td>'
                 + '<td>' + (a.actualValue === null ? '-' : a.actualValue.toFixed(1)) + '</td>'
                 + '<td><span class="badge badge-' + escapeHtml(a.alarmLevel) + '">'
@@ -228,6 +231,10 @@
                 var view = seg.getAttribute('data-aview');
                 App.$('alarmListView').classList.toggle('hidden', view !== 'list');
                 App.$('thresholdView').classList.toggle('hidden', view !== 'threshold');
+                var title = App.$('alarmTitle');
+                if (title) {
+                    title.textContent = view === 'threshold' ? '阈值配置' : '告警记录';
+                }
                 if (view === 'threshold') {
                     loadThresholds();
                 } else {

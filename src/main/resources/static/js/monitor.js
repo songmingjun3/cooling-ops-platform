@@ -28,7 +28,7 @@
                 return '<div class="mon-item">'
                     + '<span class="k">' + escapeHtml(s.name) + '</span>'
                     + '<span class="v' + (s.outOfRange ? ' out' : '') + '">'
-                    + s.value.toFixed(1) + '<small> ' + escapeHtml(s.unit) + '</small></span>'
+                    + s.value.toFixed(1) + '<small>' + escapeHtml(s.unit) + '</small></span>'
                     + '</div>';
             }).join('');
             var actions = '';

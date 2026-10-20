@@ -7,262 +7,340 @@
     <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
-<header class="app-header">
-    <div class="brand">
-        <h1>数据中心冷却系统智能运维平台</h1>
-        <p class="sub">设备管理 · 运行监控 · 告警处理 · 数据分析</p>
-    </div>
-    <div class="stats" id="stats">
-        <div class="stat"><span class="stat-value" id="statTotal">-</span><span class="stat-label">设备总数</span></div>
-        <div class="stat"><span class="stat-value ok" id="statRunning">-</span><span class="stat-label">运行中</span></div>
-        <div class="stat"><span class="stat-value warn" id="statAbnormal">-</span><span class="stat-label">故障 / 离线</span></div>
-        <div class="stat"><span class="stat-value muted" id="statZone">-</span><span class="stat-label">覆盖区域</span></div>
-    </div>
-</header>
+<div class="app-shell">
 
-<nav class="tabs">
-    <button class="tab active" data-tab="device">① 设备管理</button>
-    <button class="tab" data-tab="monitor">② 运行监控</button>
-    <button class="tab" data-tab="alarm">③ 告警管理</button>
-    <button class="tab" data-tab="analysis">④ 数据分析</button>
-</nav>
+    <!-- ==================== 左侧导航 ==================== -->
+    <aside class="sidebar">
+        <div class="logo">
+            <span class="logo-mark">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round">
+                    <path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1"/>
+                    <path d="M12 6.5l2.2-2.2M12 6.5L9.8 4.3M12 17.5l2.2 2.2M12 17.5l-2.2 2.2"/>
+                </svg>
+            </span>
+            <span class="logo-text">
+                <strong>冷却运维平台</strong>
+                <small>COOLING OPS</small>
+            </span>
+        </div>
 
-<main class="container">
-    <!-- ==================== ① 设备管理 ==================== -->
-    <div class="tab-panel" id="tab-device">
-        <section class="card toolbar">
-            <div class="field">
-                <label for="qKeyword">关键字</label>
-                <input type="text" id="qKeyword" placeholder="设备编号 / 名称">
-            </div>
-            <div class="field">
-                <label for="qType">设备类型</label>
-                <select id="qType">
-                    <option value="">全部</option>
-                    <option value="CHILLER">冷水机组</option>
-                    <option value="COOLING_TOWER">冷却塔</option>
-                    <option value="PUMP">水泵</option>
-                    <option value="COOLING_UNIT">精密空调</option>
-                </select>
-            </div>
-            <div class="field">
-                <label for="qZone">所属区域</label>
-                <select id="qZone"><option value="">全部</option></select>
-            </div>
-            <div class="field">
-                <label for="qStatus">运行状态</label>
-                <select id="qStatus">
-                    <option value="">全部</option>
-                    <option value="RUNNING">运行中</option>
-                    <option value="STOPPED">已停机</option>
-                    <option value="FAULT">故障</option>
-                    <option value="MAINTENANCE">维护中</option>
-                    <option value="OFFLINE">离线</option>
-                </select>
-            </div>
-            <div class="toolbar-actions">
-                <button class="btn btn-primary" id="btnSearch">查询</button>
-                <button class="btn" id="btnReset">重置</button>
-                <a class="btn" href="/api/devices/export.csv">导出 CSV</a>
-                <button class="btn btn-accent" id="btnCreate">+ 新增设备</button>
-            </div>
-        </section>
+        <nav class="tabs">
+            <button class="tab active" data-tab="device" data-title="设备管理"
+                    data-sub="设备台账维护 · 多条件查询 · 按区域分组">
+                <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2.5" y="3" width="19" height="7.5" rx="2"/>
+                    <rect x="2.5" y="13.5" width="19" height="7.5" rx="2"/>
+                    <path d="M6.5 6.75h.01M6.5 17.25h.01"/>
+                </svg>
+                <span class="tab-text">设备管理</span>
+            </button>
+            <button class="tab" data-tab="monitor" data-title="运行监控"
+                    data-sub="实时参数刷新 · 设备启停 · 模拟数据采集">
+                <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                </svg>
+                <span class="tab-text">运行监控</span>
+            </button>
+            <button class="tab" data-tab="alarm" data-title="告警管理"
+                    data-sub="告警处理闭环 · 阈值规则配置">
+                <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+                    <path d="M13.7 21a2 2 0 0 1-3.4 0"/>
+                </svg>
+                <span class="tab-text">告警管理</span>
+                <span class="tab-badge hidden" id="navAlarmBadge">0</span>
+            </button>
+            <button class="tab" data-tab="analysis" data-title="数据分析"
+                    data-sub="设备状态分布 · 运行参数趋势">
+                <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 20h18"/>
+                    <rect x="5" y="11" width="3.4" height="9" rx="1"/>
+                    <rect x="10.3" y="6" width="3.4" height="14" rx="1"/>
+                    <rect x="15.6" y="14" width="3.4" height="6" rx="1"/>
+                </svg>
+                <span class="tab-text">数据分析</span>
+            </button>
+        </nav>
 
-        <section class="card">
-            <div class="card-head">
-                <h2 id="listTitle">设备清单</h2>
-                <div class="seg-group">
-                    <button class="seg active" data-view="list">列表视图</button>
-                    <button class="seg" data-view="zone">按区域分组</button>
+        <div class="sidebar-foot">
+            <span class="pulse"></span>
+            <span class="foot-text">
+                <strong>采集运行中</strong>
+                <small>周期 3 秒</small>
+            </span>
+        </div>
+    </aside>
+
+    <!-- ==================== 主区域 ==================== -->
+    <div class="main">
+        <header class="app-header">
+            <div class="page-title">
+                <h1 id="pageTitle">设备管理</h1>
+                <p class="sub" id="pageSub">设备台账维护 · 多条件查询 · 按区域分组</p>
+            </div>
+            <div class="stats" id="stats">
+                <div class="stat">
+                    <span class="stat-value" id="statTotal">-</span>
+                    <span class="stat-label">设备总数</span>
+                </div>
+                <div class="stat stat-ok">
+                    <span class="stat-value ok" id="statRunning">-</span>
+                    <span class="stat-label">运行中</span>
+                </div>
+                <div class="stat stat-warn">
+                    <span class="stat-value warn" id="statAbnormal">-</span>
+                    <span class="stat-label">故障 / 离线</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value muted" id="statZone">-</span>
+                    <span class="stat-label">覆盖区域</span>
                 </div>
             </div>
+        </header>
 
-            <div id="listView">
-                <div class="table-wrap">
-                    <table class="data-table">
-                        <thead>
-                        <tr>
-                            <th>设备编号</th>
-                            <th>设备名称</th>
-                            <th>类型</th>
-                            <th>区域</th>
-                            <th>状态</th>
-                            <th>关键参数</th>
-                            <th class="col-actions">操作</th>
-                        </tr>
-                        </thead>
-                        <tbody id="deviceTbody">
-                        <tr><td colspan="7" class="empty">加载中…</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="pager" id="pager"></div>
-            </div>
-
-            <div id="zoneView" class="hidden"></div>
-        </section>
-    </div>
-
-    <!-- ==================== ② 运行监控 ==================== -->
-    <div class="tab-panel hidden" id="tab-monitor">
-        <section class="card toolbar">
-            <div class="field">
-                <label>设备类型</label>
-                <div class="seg-group" id="monitorTypes">
-                    <button class="seg active" data-mtype="CHILLER">冷水机组</button>
-                    <button class="seg" data-mtype="COOLING_TOWER">冷却塔</button>
-                    <button class="seg" data-mtype="PUMP">水泵</button>
-                    <button class="seg" data-mtype="COOLING_UNIT">精密空调</button>
-                </div>
-            </div>
-            <div class="toolbar-actions">
-                <button class="btn" id="btnCollect">立即采集一次</button>
-                <button class="btn btn-primary" id="btnRefreshMonitor">刷新</button>
-            </div>
-        </section>
-
-        <section class="card">
-            <div class="card-head">
-                <h2 id="monitorTitle">设备运行状态</h2>
-                <span class="hint">采集周期 3 秒，仅运行中的设备参与采集</span>
-            </div>
-            <div id="monitorCards" class="zone-grid">
-                <p class="empty">加载中…</p>
-            </div>
-        </section>
-    </div>
-
-    <!-- ==================== ③ 告警管理 ==================== -->
-    <div class="tab-panel hidden" id="tab-alarm">
-        <section class="card">
-            <div class="card-head">
-                <h2>告警管理</h2>
-                <div class="seg-group">
-                    <button class="seg active" data-aview="list">告警记录</button>
-                    <button class="seg" data-aview="threshold">阈值配置</button>
-                </div>
-            </div>
-
-            <div id="alarmListView">
-                <div class="toolbar sub-toolbar">
+        <main class="container">
+            <!-- ==================== ① 设备管理 ==================== -->
+            <div class="tab-panel" id="tab-device">
+                <section class="card toolbar">
                     <div class="field">
-                        <label for="qAlarmStatus">处理状态</label>
-                        <select id="qAlarmStatus">
+                        <label for="qKeyword">关键字</label>
+                        <input type="text" id="qKeyword" placeholder="设备编号 / 名称">
+                    </div>
+                    <div class="field">
+                        <label for="qType">设备类型</label>
+                        <select id="qType">
                             <option value="">全部</option>
-                            <option value="UNHANDLED">未处理</option>
-                            <option value="HANDLED">已处理</option>
+                            <option value="CHILLER">冷水机组</option>
+                            <option value="COOLING_TOWER">冷却塔</option>
+                            <option value="PUMP">水泵</option>
+                            <option value="COOLING_UNIT">精密空调</option>
                         </select>
                     </div>
                     <div class="field">
-                        <label for="qAlarmLevel">告警级别</label>
-                        <select id="qAlarmLevel">
+                        <label for="qZone">所属区域</label>
+                        <select id="qZone"><option value="">全部</option></select>
+                    </div>
+                    <div class="field">
+                        <label for="qStatus">运行状态</label>
+                        <select id="qStatus">
                             <option value="">全部</option>
-                            <option value="WARNING">警告</option>
-                            <option value="CRITICAL">严重</option>
+                            <option value="RUNNING">运行中</option>
+                            <option value="STOPPED">已停机</option>
+                            <option value="FAULT">故障</option>
+                            <option value="MAINTENANCE">维护中</option>
+                            <option value="OFFLINE">离线</option>
                         </select>
                     </div>
                     <div class="toolbar-actions">
-                        <button class="btn" id="btnRefreshAlarm">刷新</button>
+                        <button class="btn btn-primary" id="btnSearch">查询</button>
+                        <button class="btn" id="btnReset">重置</button>
+                        <a class="btn" href="/api/devices/export.csv">导出 CSV</a>
+                        <button class="btn btn-accent" id="btnCreate">+ 新增设备</button>
                     </div>
-                </div>
-                <div class="table-wrap">
-                    <table class="data-table">
-                        <thead>
-                        <tr>
-                            <th>告警编号</th>
-                            <th>设备</th>
-                            <th>参数</th>
-                            <th>实际值</th>
-                            <th>级别</th>
-                            <th>状态</th>
-                            <th>触发时间</th>
-                            <th class="col-actions">操作</th>
-                        </tr>
-                        </thead>
-                        <tbody id="alarmTbody">
-                        <tr><td colspan="8" class="empty">加载中…</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="pager" id="alarmPager"></div>
-            </div>
+                </section>
 
-            <div id="thresholdView" class="hidden">
-                <div class="toolbar sub-toolbar">
-                    <span class="hint">阈值保存在数据库中，可随时调整；采集时据此自动判定告警</span>
-                    <div class="toolbar-actions">
-                        <button class="btn btn-accent" id="btnAddThreshold">+ 新增阈值</button>
+                <section class="card">
+                    <div class="card-head">
+                        <h2 id="listTitle">设备清单</h2>
+                        <div class="seg-group">
+                            <button class="seg active" data-view="list">列表视图</button>
+                            <button class="seg" data-view="zone">按区域分组</button>
+                        </div>
                     </div>
-                </div>
-                <div class="table-wrap">
-                    <table class="data-table">
-                        <thead>
-                        <tr>
-                            <th>设备类型</th>
-                            <th>规则</th>
-                            <th>级别</th>
-                            <th>启用</th>
-                            <th>备注</th>
-                            <th class="col-actions">操作</th>
-                        </tr>
-                        </thead>
-                        <tbody id="thresholdTbody">
-                        <tr><td colspan="6" class="empty">加载中…</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-    </div>
 
-    <!-- ==================== ④ 数据分析 ==================== -->
-    <div class="tab-panel hidden" id="tab-analysis">
-        <section class="card">
-            <div class="card-head">
-                <h2>设备运行统计（AN-01）</h2>
-                <button class="btn" id="btnRefreshStat">刷新</button>
-            </div>
-            <div class="stat-cards" id="statCards"></div>
-            <div class="chart-row">
-                <div class="chart-box">
-                    <h4>按设备类型分布</h4>
-                    <div id="barByType" class="bar-list"></div>
-                </div>
-                <div class="chart-box">
-                    <h4>按运行状态分布</h4>
-                    <div id="barByStatus" class="bar-list"></div>
-                </div>
-                <div class="chart-box">
-                    <h4>按区域分布</h4>
-                    <div id="barByZone" class="bar-list"></div>
-                </div>
-            </div>
-        </section>
+                    <div id="listView">
+                        <div class="table-wrap">
+                            <table class="data-table">
+                                <thead>
+                                <tr>
+                                    <th>设备编号</th>
+                                    <th>设备名称</th>
+                                    <th>类型</th>
+                                    <th>区域</th>
+                                    <th>状态</th>
+                                    <th>关键参数</th>
+                                    <th class="col-actions">操作</th>
+                                </tr>
+                                </thead>
+                                <tbody id="deviceTbody">
+                                <tr><td colspan="7" class="empty">加载中…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="pager" id="pager"></div>
+                    </div>
 
-        <section class="card">
-            <div class="card-head">
-                <h2>运行参数趋势（AN-02）</h2>
-                <div class="toolbar sub-toolbar">
+                    <div id="zoneView" class="hidden"></div>
+                </section>
+            </div>
+
+            <!-- ==================== ② 运行监控 ==================== -->
+            <div class="tab-panel hidden" id="tab-monitor">
+                <section class="card toolbar">
                     <div class="field">
-                        <label for="trendDevice">设备</label>
-                        <select id="trendDevice"></select>
-                    </div>
-                    <div class="field">
-                        <label for="trendSensor">参数</label>
-                        <select id="trendSensor"></select>
+                        <label>设备类型</label>
+                        <div class="seg-group" id="monitorTypes">
+                            <button class="seg active" data-mtype="CHILLER">冷水机组</button>
+                            <button class="seg" data-mtype="COOLING_TOWER">冷却塔</button>
+                            <button class="seg" data-mtype="PUMP">水泵</button>
+                            <button class="seg" data-mtype="COOLING_UNIT">精密空调</button>
+                        </div>
                     </div>
                     <div class="toolbar-actions">
-                        <button class="btn btn-primary" id="btnTrend">查看趋势</button>
+                        <button class="btn" id="btnCollect">立即采集一次</button>
+                        <button class="btn btn-primary" id="btnRefreshMonitor">刷新</button>
                     </div>
-                </div>
+                </section>
+
+                <section class="card">
+                    <div class="card-head">
+                        <h2 id="monitorTitle">设备运行状态</h2>
+                        <span class="hint">采集周期 3 秒，仅运行中的设备参与采集</span>
+                    </div>
+                    <div id="monitorCards" class="zone-grid">
+                        <p class="empty">加载中…</p>
+                    </div>
+                </section>
             </div>
-            <div id="trendChart" class="trend-chart">
-                <p class="empty">请选择设备与参数后点击「查看趋势」</p>
+
+            <!-- ==================== ③ 告警管理 ==================== -->
+            <div class="tab-panel hidden" id="tab-alarm">
+                <section class="card">
+                    <div class="card-head">
+                        <h2 id="alarmTitle">告警记录</h2>
+                        <div class="seg-group">
+                            <button class="seg active" data-aview="list">告警记录</button>
+                            <button class="seg" data-aview="threshold">阈值配置</button>
+                        </div>
+                    </div>
+
+                    <div id="alarmListView">
+                        <div class="toolbar sub-toolbar">
+                            <div class="field">
+                                <label for="qAlarmStatus">处理状态</label>
+                                <select id="qAlarmStatus">
+                                    <option value="">全部</option>
+                                    <option value="UNHANDLED">未处理</option>
+                                    <option value="HANDLED">已处理</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="qAlarmLevel">告警级别</label>
+                                <select id="qAlarmLevel">
+                                    <option value="">全部</option>
+                                    <option value="WARNING">警告</option>
+                                    <option value="CRITICAL">严重</option>
+                                </select>
+                            </div>
+                            <div class="toolbar-actions">
+                                <button class="btn" id="btnRefreshAlarm">刷新</button>
+                            </div>
+                        </div>
+                        <div class="table-wrap">
+                            <table class="data-table">
+                                <thead>
+                                <tr>
+                                    <th>告警编号</th>
+                                    <th>设备</th>
+                                    <th>参数</th>
+                                    <th>实际值</th>
+                                    <th>级别</th>
+                                    <th>状态</th>
+                                    <th>触发时间</th>
+                                    <th class="col-actions">操作</th>
+                                </tr>
+                                </thead>
+                                <tbody id="alarmTbody">
+                                <tr><td colspan="8" class="empty">加载中…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="pager" id="alarmPager"></div>
+                    </div>
+
+                    <div id="thresholdView" class="hidden">
+                        <div class="toolbar sub-toolbar">
+                            <span class="hint">阈值保存在数据库中，可随时调整；采集时据此自动判定告警</span>
+                            <div class="toolbar-actions">
+                                <button class="btn btn-accent" id="btnAddThreshold">+ 新增阈值</button>
+                            </div>
+                        </div>
+                        <div class="table-wrap">
+                            <table class="data-table">
+                                <thead>
+                                <tr>
+                                    <th>设备类型</th>
+                                    <th>规则</th>
+                                    <th>级别</th>
+                                    <th>启用</th>
+                                    <th>备注</th>
+                                    <th class="col-actions">操作</th>
+                                </tr>
+                                </thead>
+                                <tbody id="thresholdTbody">
+                                <tr><td colspan="6" class="empty">加载中…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
             </div>
-            <p class="hint" id="trendMeta"></p>
-        </section>
+
+            <!-- ==================== ④ 数据分析 ==================== -->
+            <div class="tab-panel hidden" id="tab-analysis">
+                <section class="card">
+                    <div class="card-head">
+                        <h2>设备运行统计（AN-01）</h2>
+                        <button class="btn" id="btnRefreshStat">刷新</button>
+                    </div>
+                    <div class="stat-cards" id="statCards"></div>
+                    <div class="chart-row">
+                        <div class="chart-box">
+                            <h4>按设备类型分布</h4>
+                            <div id="barByType" class="bar-list"></div>
+                        </div>
+                        <div class="chart-box">
+                            <h4>按运行状态分布</h4>
+                            <div id="barByStatus" class="bar-list"></div>
+                        </div>
+                        <div class="chart-box">
+                            <h4>按区域分布</h4>
+                            <div id="barByZone" class="bar-list"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card">
+                    <div class="card-head">
+                        <h2>运行参数趋势（AN-02）</h2>
+                        <div class="toolbar sub-toolbar">
+                            <div class="field">
+                                <label for="trendDevice">设备</label>
+                                <select id="trendDevice"></select>
+                            </div>
+                            <div class="field">
+                                <label for="trendSensor">参数</label>
+                                <select id="trendSensor"></select>
+                            </div>
+                            <div class="toolbar-actions">
+                                <button class="btn btn-primary" id="btnTrend">查看趋势</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="trendChart" class="trend-chart">
+                        <p class="empty">请选择设备与参数后点击「查看趋势」</p>
+                    </div>
+                    <p class="hint" id="trendMeta"></p>
+                </section>
+            </div>
+        </main>
     </div>
-</main>
+</div>
 
 <!-- 新增 / 编辑 设备 -->
 <div class="modal hidden" id="formModal">
