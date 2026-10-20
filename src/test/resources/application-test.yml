@@ -1,0 +1,31 @@
+# 测试专用配置：使用独立数据库文件，关闭定时采集避免与用例互相干扰
+spring:
+  datasource:
+    driver-class-name: org.sqlite.JDBC
+    url: jdbc:sqlite:./target/test-data/cooling-ops-test.db
+    hikari:
+      # SQLite 单写者模型，连接池固定为 1，避免写锁冲突
+      maximum-pool-size: 1
+      connection-init-sql: PRAGMA foreign_keys = ON
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/schema.sql
+      data-locations: classpath:db/data.sql
+
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-handlers-package: com.cooling.platform.config.typehandler
+
+cooling:
+  acquisition:
+    # 功能测试由用例显式触发采集，关闭定时任务保证断言可复现
+    enabled: false
+    interval: 600000
+    keep-days: 7
+
+logging:
+  level:
+    root: warn
+    com.cooling.platform: info
+    com.cooling.platform.mapper: warn

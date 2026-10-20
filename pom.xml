@@ -72,6 +72,16 @@
             <version>${mybatis-spring-boot.version}</version>
             <scope>test</scope>
         </dependency>
+        <!--
+            功能测试需要发起 PATCH 请求，而 JDK 自带的 HttpURLConnection
+            不支持 PATCH（Invalid HTTP method: PATCH），因此引入 Apache HttpClient
+            作为测试期的请求工厂实现。
+        -->
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
