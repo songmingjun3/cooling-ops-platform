@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cooling.platform.mapper.DeviceMapper">
+
+    <!-- ================= 查询条件片段 ================= -->
+    <sql id="conditionWhere">
+        <where>
+            <if test="q.deviceId != null and q.deviceId != ''">
+                AND device_id = #{q.deviceId}
+            </if>
+            <if test="q.keyword != null and q.keyword != ''">
+                AND (device_name LIKE '%' || #{q.keyword} || '%'
+                     OR device_id LIKE '%' || #{q.keyword} || '%')
+            </if>
+            <if test="q.deviceType != null">
+                AND device_type = #{q.deviceType}
+            </if>
+            <if test="q.zone != null and q.zone != ''">
+                AND zone = #{q.zone}
+            </if>
+            <if test="q.status != null">
+                AND status = #{q.status}
+            </if>
+        </where>
+    </sql>
+
+    <!-- ================= 新增 ================= -->
+    <insert id="insert" parameterType="com.cooling.platform.entity.DevicePO">
+        INSERT INTO device (device_id, device_type, device_name, manufacturer, model,
+                            install_date, status, zone, params, create_time, update_time)
+        VALUES (#{deviceId}, #{deviceType}, #{deviceName}, #{manufacturer}, #{model},
+                #{installDate}, #{status}, #{zone}, #{params},
+                datetime('now', 'localtime'), datetime('now', 'localtime'))
+    </insert>
+
+    <!-- ================= 修改基本信息 ================= -->
+    <update id="updateBasicInfo" parameterType="com.cooling.platform.entity.DevicePO">
+        UPDATE device
+        SET device_name  = #{deviceName},
+            manufacturer = #{manufacturer},
+            model        = #{model},
+            install_date = #{installDate},
+            zone         = #{zone},
+            update_time  = datetime('now', 'localtime')
+        WHERE device_id = #{deviceId}
+    </update>
+
+    <!-- ================= 删除 ================= -->
+    <delete id="deleteById">
+        DELETE FROM device WHERE device_id = #{deviceId}
+    </delete>
+
+    <delete id="deleteSensorDataByDevice">
+        DELETE FROM sensor_data WHERE device_id = #{deviceId}
+    </delete>
+
+    <!-- ================= 查询 ================= -->
+    <select id="selectById" resultType="com.cooling.platform.entity.DevicePO">
+        SELECT device_id, device_type, device_name, manufacturer, model, install_date,
+               status, zone, params, create_time, update_time
+        FROM device
+        WHERE device_id = #{deviceId}
+    </select>
+
+    <select id="selectByCondition" resultType="com.cooling.platform.entity.DevicePO">
+        SELECT device_id, device_type, device_name, manufacturer, model, install_date,
+               status, zone, params, create_time, update_time
+        FROM device
+        <include refid="conditionWhere"/>
+        ORDER BY device_id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByCondition" resultType="long">
+        SELECT COUNT(1)
+        FROM device
+        <include refid="conditionWhere"/>
+    </select>
+
+    <select id="selectAll" resultType="com.cooling.platform.entity.DevicePO">
+        SELECT device_id, device_type, device_name, manufacturer, model, install_date,
+               status, zone, params, create_time, update_time
+        FROM device
+        ORDER BY zone, device_id
+    </select>
+
+    <select id="selectIdsByPrefix" resultType="string">
+        SELECT device_id
+        FROM device
+        WHERE device_id LIKE #{prefix} || '-%'
+    </select>
+
+</mapper>

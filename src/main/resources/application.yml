@@ -21,6 +21,8 @@ spring:
       minimum-idle: 1
       pool-name: sqlite-pool
       connection-timeout: 30000
+      # 每个物理连接创建时开启外键约束（SQLite 默认关闭，需逐连接设置）
+      connection-init-sql: PRAGMA foreign_keys = ON
   sql:
     init:
       # SQLite 不属于 Spring 判定的嵌入式库，需显式指定 always
@@ -40,6 +42,8 @@ spring:
 mybatis:
   mapper-locations: classpath*:mapper/**/*.xml
   type-aliases-package: com.cooling.platform.entity
+  # 自定义 JSR-310 类型处理器（SQLite 以文本存储日期时间）
+  type-handlers-package: com.cooling.platform.config.typehandler
   configuration:
     map-underscore-to-camel-case: true
     default-statement-timeout: 30

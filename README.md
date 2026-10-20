@@ -136,6 +136,23 @@
 - `Sensor` 封装量测值、单位与合理波动区间，`MM-05` 模拟采集在区间内随机波动；
 - 告警规则采用策略模式（`rule/`），新增规则或调整阈值无需修改采集与检测主流程，满足开闭原则。
 
+**设备参数的读写链路（单表继承落地方式）**
+
+```
+HTTP/JSON ──► DeviceCreateDTO.params(Map)
+                    │  DeviceFactory.applyParams()  ← 类型转换 + 合法性校验
+                    ▼
+              Chiller / CoolingTower / Pump / CoolingUnit
+                    │  DeviceConverter.writeParams()  ← 只把「值」写进 JSON
+                    ▼
+        device 表：公共属性成列，params 存 {"coolingCapacity":130.0,...}
+                    │  DeviceConverter.toDevice() + SensorCatalog 补齐名称/单位/区间
+                    ▼
+              领域对象（多态）──► DeviceVO / DeviceDetailVO
+```
+
+传感器在 { } 中只存数值，名称、单位与合理区间由 `SensorCatalog` 统一提供，避免同一参数在每条设备记录里重复维护；`DeviceIdGenerator` 按「同前缀最大序号 + 1」生成编号并加锁，保证并发下不重复。
+
 ---
 
 ## 六、目录结构
@@ -154,24 +171,25 @@
 ├── src/main/java/com/cooling/platform/
 │   ├── CoolingPlatformApplication.java    # 启动类
 │   ├── common/                            # 通用能力（跨模块复用）
-│   │   ├── constant/                      # 常量：设备编号前缀、业务字典、接口路径
+│   │   ├── constant/                      # DeviceConstants 常量、SensorCatalog 传感器元数据
 │   │   ├── enums/                         # 枚举：DeviceStatus / DeviceType / TowerType
 │   │   │                                  #       PumpType / AlarmLevel / AlarmStatus
 │   │   ├── exception/                     # BusinessException、GlobalExceptionHandler
-│   │   ├── response/                      # Result 统一响应包装
-│   │   └── util/                          # 工具：DeviceIdGenerator、CsvExporter、DateUtils
-│   ├── config/                            # 配置：SQLite 数据源、MyBatis、WebMvc、定时任务
+│   │   ├── response/                      # Result 统一响应、PageResult 分页结果
+│   │   └── util/                          # 工具：CsvExporter、DateUtils（待补充）
+│   ├── config/                            # 配置：Jackson 格式、SQLite 类型处理器、WebMvc 等
+│   │   └── typehandler/                   # LocalDate / LocalDateTime ↔ SQLite 文本
 │   ├── controller/                        # Spring MVC 控制层（REST 接口，按模块拆分）
 │   ├── service/                           # 业务接口（按模块拆分）
 │   │   └── impl/                          # 业务实现
 │   ├── mapper/                            # MyBatis Mapper 接口
-│   ├── entity/                            # 领域模型：Device 及四个子类、Sensor、Alarm 等
+│   ├── entity/                            # 领域模型 Device 及四个子类、Sensor、DevicePO
 │   ├── dto/                               # 请求对象：DeviceCreateDTO、DeviceQueryDTO 等
-│   ├── vo/                                # 响应对象：DeviceVO、AlarmVO、StatisticsVO 等
+│   ├── vo/                                # 响应对象：DeviceVO、DeviceDetailVO、ZoneGroupVO
 │   ├── converter/                         # Entity ↔ DTO/VO 转换（含 params JSON 编解码）
-│   ├── scheduler/                         # 定时任务：DataAcquisitionTask（MM-05）
-│   ├── rule/                              # 告警规则策略：AlarmRule + 注册表 + 各实现
-│   └── factory/                           # 设备工厂：按 DeviceType 创建具体设备子类
+│   ├── scheduler/                         # 定时任务：DataAcquisitionTask（MM-05，待实现）
+│   ├── rule/                              # 告警规则策略：AlarmRule + 注册表 + 各实现（待实现）
+│   └── factory/                           # DeviceFactory 设备工厂、DeviceIdGenerator 编号生成
 │
 ├── src/main/resources/
 │   ├── application.yml                    # 主配置（端口、数据源、MyBatis、业务参数）
@@ -180,10 +198,12 @@
 │   ├── db/
 │   │   ├── schema.sql                     # 建表脚本（幂等，启动自动执行）
 │   │   └── data.sql                       # 初始化示例数据（幂等，INSERT OR IGNORE）
-│   ├── mapper/                            # MyBatis XML 映射文件
+│   ├── mapper/                            # MyBatis XML 映射文件（DeviceMapper.xml）
 │   └── static/                            # 前端静态资源
-│       ├── index.html                     # 主界面（设备清单 / 监控 / 告警 / 分析）
-│       ├── css/  js/  pages/  assets/      # 样式、脚本、子页面、图片与第三方库
+│       ├── index.html                     # 主界面（设备清单 / 分组 / 新增 / 编辑 / 详情）
+│       ├── css/app.css                    # 样式
+│       ├── js/device.js                   # 设备管理交互逻辑（原生 fetch）
+│       └── pages/  assets/                # 预留子页面与图片资源
 │
 ├── src/test/java/com/cooling/platform/    # 单元测试（与主代码同包结构）
 │
@@ -263,12 +283,20 @@ java -jar target/cooling-ops-platform.jar
 
 启动成功后：
 
-- 主界面：<http://localhost:8080/index.html>
-- 接口示例：<http://localhost:8080/api/devices>
+- 主界面：<http://localhost:8080/>（设备清单、按区域分组、新增 / 编辑 / 删除 / 详情）
+- 接口示例：<http://localhost:8080/api/devices?pageSize=5>
 - 数据库文件：`./data/cooling-ops.db`（首次启动自动创建，含 12 台示例设备）
 - 运行日志：`./logs/cooling-ops.log`
 
 > 若需重置数据，停止应用后删除 `data/cooling-ops-dev.db`，下次启动会重新建表并播种示例数据。
+
+### 常见问题
+
+| 现象 | 原因与处理 |
+| --- | --- |
+| 启动报 `Port xxxxx is already in use` | Spring Boot 会把环境变量 `SERVER_PORT` / `SERVER__PORT` 当作 `server.port`，覆盖 `application.yml`。显式指定端口即可：`mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dserver.port=8080"`，或先清掉该环境变量 |
+| 页面能打开但列表为空 | 打开浏览器控制台看 `/api/devices` 是否返回 `code:0`；若数据库被手工改坏，删库重启即可重新播种 |
+| 中文乱码 | 确认运行环境为 UTF-8；项目已在 `application.yml` 与 `logback-spring.xml` 中强制 UTF-8 |
 
 ---
 
@@ -290,24 +318,40 @@ java -jar target/cooling-ops-platform.jar
 | `-1` | 通用业务失败（如设备不存在、编号重复） |
 | `500` | 系统内部错误 |
 
-**规划中的主要接口**
+**接口清单**
 
-| 模块 | 方法与路径 | 说明 |
-| --- | --- | --- |
-| 设备 | `GET /api/devices` | 多条件分页查询（FM-04/05） |
-| 设备 | `GET /api/devices/{deviceId}` | 设备详情（MM-01） |
-| 设备 | `POST /api/devices` | 新增，编号由后端生成（FM-01） |
-| 设备 | `PUT /api/devices/{deviceId}` | 修改基本信息（FM-03） |
-| 设备 | `DELETE /api/devices/{deviceId}` | 删除（FM-02） |
-| 设备 | `GET /api/devices/group-by-zone` | 按区域分组（FM-06） |
-| 监控 | `PATCH /api/devices/{deviceId}/status` | 启动 / 停机（MM-03/04） |
-| 监控 | `GET /api/devices/type/{deviceType}` | 按类型批量查看（MM-02） |
-| 告警 | `GET /api/alarms` | 告警列表，可按状态/级别过滤（AM-03） |
-| 告警 | `PATCH /api/alarms/{id}/handle` | 处理告警（AM-04） |
-| 告警 | `GET|PUT /api/alarm-thresholds` | 阈值查询与配置（AM-01） |
-| 分析 | `GET /api/statistics/overview` | 设备数量与状态分布（AN-01） |
-| 分析 | `GET /api/statistics/trend` | 温度趋势点（AN-02） |
-| 数据 | `GET /api/export/devices.csv` | 设备清单导出 CSV（PM-04） |
+| 模块 | 方法与路径 | 说明 | 状态 |
+| --- | --- | --- | --- |
+| 设备 | `GET /api/devices` | 多条件分页查询（FM-04/05） | ✅ |
+| 设备 | `GET /api/devices/{deviceId}` | 设备详情（MM-01） | ✅ |
+| 设备 | `POST /api/devices` | 新增，编号由后端生成（FM-01） | ✅ |
+| 设备 | `PUT /api/devices/{deviceId}` | 修改基本信息（FM-03） | ✅ |
+| 设备 | `DELETE /api/devices/{deviceId}` | 删除（FM-02） | ✅ |
+| 设备 | `GET /api/devices/group-by-zone` | 按区域分组（FM-06） | ✅ |
+| 监控 | `PATCH /api/devices/{deviceId}/status` | 启动 / 停机（MM-03/04） | ⬜ M3 |
+| 监控 | `GET /api/devices/type/{deviceType}` | 按类型批量查看（MM-02） | ⬜ M3 |
+| 告警 | `GET /api/alarms` | 告警列表，可按状态/级别过滤（AM-03） | ⬜ M4 |
+| 告警 | `PATCH /api/alarms/{id}/handle` | 处理告警（AM-04） | ⬜ M4 |
+| 告警 | `GET\|PUT /api/alarm-thresholds` | 阈值查询与配置（AM-01） | ⬜ M4 |
+| 分析 | `GET /api/statistics/overview` | 设备数量与状态分布（AN-01） | ⬜ M6 |
+| 分析 | `GET /api/statistics/trend` | 温度趋势点（AN-02） | ⬜ M6 |
+| 数据 | `GET /api/export/devices.csv` | 设备清单导出 CSV（PM-04） | ⬜ M5 |
+
+**请求示例**
+
+```bash
+# 新增一台水泵（编号自动生成为 PM-005）
+curl -X POST http://localhost:8080/api/devices \
+  -H "Content-Type: application/json" \
+  -d '{"deviceType":"PUMP","deviceName":"3号冷冻水泵","manufacturer":"格兰富",
+       "model":"NK150-400","installDate":"2025-01-10","zone":"A区",
+       "params":{"pumpType":"CHILLED_WATER","flowRate":80,"head":32,"power":21,"speed":70}}'
+
+# 多条件查询：A 区运行中的冷水机组
+curl "http://localhost:8080/api/devices?zone=A区&status=RUNNING&deviceType=CHILLER"
+```
+
+> `params` 的键名与需求文档 3.3 节属性名一致，传感器类参数直接传数值；未传的字段按类型默认值填充，传了未定义的键会返回 400 并指出具体键名。
 
 ---
 
@@ -381,7 +425,7 @@ chore(build): 升级 sqlite-jdbc 版本
 | 里程碑 | 内容 | 状态 |
 | --- | --- | --- |
 | M1 | 仓库初始化、规范化目录、领域模型与枚举、数据库脚本、统一响应/异常 | ✅ 已完成 |
-| M2 | 设备管理模块 FM-01~06（Mapper / Service / Controller / 页面） | ⬜ 待开始 |
+| M2 | 设备管理模块 FM-01~06（Mapper / Service / Controller / 页面 / 接口联调） | ✅ 已完成 |
 | M3 | 运行监控模块 MM-01~05（含定时模拟采集） | ⬜ 待开始 |
 | M4 | 告警管理模块 AM-01~05（阈值配置、策略化检测、处理闭环） | ⬜ 待开始 |
 | M5 | 数据持久化与导出 PM-01~04（运行日志、告警日志、CSV 导出） | ⬜ 待开始 |

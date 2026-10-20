@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据中心冷却系统智能运维平台</title>
+    <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<header class="app-header">
+    <div class="brand">
+        <h1>数据中心冷却系统智能运维平台</h1>
+        <p class="sub">设备管理 · 运行监控 · 告警处理 · 数据分析</p>
+    </div>
+    <div class="stats" id="stats">
+        <div class="stat"><span class="stat-value" id="statTotal">-</span><span class="stat-label">设备总数</span></div>
+        <div class="stat"><span class="stat-value ok" id="statRunning">-</span><span class="stat-label">运行中</span></div>
+        <div class="stat"><span class="stat-value warn" id="statAbnormal">-</span><span class="stat-label">故障 / 离线</span></div>
+        <div class="stat"><span class="stat-value muted" id="statZone">-</span><span class="stat-label">覆盖区域</span></div>
+    </div>
+</header>
+
+<main class="container">
+    <!-- 查询条件 -->
+    <section class="card toolbar">
+        <div class="field">
+            <label for="qKeyword">关键字</label>
+            <input type="text" id="qKeyword" placeholder="设备编号 / 名称">
+        </div>
+        <div class="field">
+            <label for="qType">设备类型</label>
+            <select id="qType">
+                <option value="">全部</option>
+                <option value="CHILLER">冷水机组</option>
+                <option value="COOLING_TOWER">冷却塔</option>
+                <option value="PUMP">水泵</option>
+                <option value="COOLING_UNIT">精密空调</option>
+            </select>
+        </div>
+        <div class="field">
+            <label for="qZone">所属区域</label>
+            <select id="qZone"><option value="">全部</option></select>
+        </div>
+        <div class="field">
+            <label for="qStatus">运行状态</label>
+            <select id="qStatus">
+                <option value="">全部</option>
+                <option value="RUNNING">运行中</option>
+                <option value="STOPPED">已停机</option>
+                <option value="FAULT">故障</option>
+                <option value="MAINTENANCE">维护中</option>
+                <option value="OFFLINE">离线</option>
+            </select>
+        </div>
+        <div class="toolbar-actions">
+            <button class="btn btn-primary" id="btnSearch">查询</button>
+            <button class="btn" id="btnReset">重置</button>
+            <button class="btn btn-accent" id="btnCreate">+ 新增设备</button>
+        </div>
+    </section>
+
+    <!-- 设备清单 -->
+    <section class="card">
+        <div class="card-head">
+            <h2 id="listTitle">设备清单</h2>
+            <div class="seg-group">
+                <button class="seg active" data-view="list">列表视图</button>
+                <button class="seg" data-view="zone">按区域分组</button>
+            </div>
+        </div>
+
+        <div id="listView">
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                    <tr>
+                        <th>设备编号</th>
+                        <th>设备名称</th>
+                        <th>类型</th>
+                        <th>区域</th>
+                        <th>状态</th>
+                        <th>关键参数</th>
+                        <th class="col-actions">操作</th>
+                    </tr>
+                    </thead>
+                    <tbody id="deviceTbody">
+                    <tr><td colspan="7" class="empty">加载中…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="pager" id="pager"></div>
+        </div>
+
+        <div id="zoneView" class="hidden"></div>
+    </section>
+</main>
+
+<!-- 新增 / 编辑 弹窗 -->
+<div class="modal hidden" id="formModal">
+    <div class="modal-panel">
+        <div class="modal-head">
+            <h3 id="formTitle">新增设备</h3>
+            <button class="icon-btn" data-close="formModal">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-grid">
+                <div class="field">
+                    <label for="fDeviceType">设备类型 <em>*</em></label>
+                    <select id="fDeviceType">
+                        <option value="CHILLER">冷水机组</option>
+                        <option value="COOLING_TOWER">冷却塔</option>
+                        <option value="PUMP">水泵</option>
+                        <option value="COOLING_UNIT">精密空调</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="fDeviceName">设备名称 <em>*</em></label>
+                    <input type="text" id="fDeviceName" maxlength="50" placeholder="如 3号冷水机组">
+                </div>
+                <div class="field">
+                    <label for="fManufacturer">生产厂商</label>
+                    <input type="text" id="fManufacturer" maxlength="50" placeholder="如 格力">
+                </div>
+                <div class="field">
+                    <label for="fModel">设备型号</label>
+                    <input type="text" id="fModel" maxlength="50" placeholder="如 LSQWRF130M">
+                </div>
+                <div class="field">
+                    <label for="fInstallDate">安装日期</label>
+                    <input type="date" id="fInstallDate">
+                </div>
+                <div class="field">
+                    <label for="fZone">所属区域 <em>*</em></label>
+                    <input type="text" id="fZone" maxlength="20" placeholder="如 A区">
+                </div>
+            </div>
+            <div id="paramBlock">
+                <h4 class="section-title">专有参数<span class="hint">（留空则使用默认值）</span></h4>
+                <div class="form-grid" id="paramFields"></div>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn" data-close="formModal">取消</button>
+            <button class="btn btn-primary" id="btnSave">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 详情弹窗 -->
+<div class="modal hidden" id="detailModal">
+    <div class="modal-panel">
+        <div class="modal-head">
+            <h3 id="detailTitle">设备详情</h3>
+            <button class="icon-btn" data-close="detailModal">×</button>
+        </div>
+        <div class="modal-body" id="detailBody"></div>
+        <div class="modal-foot">
+            <button class="btn" data-close="detailModal">关闭</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+
+<script src="/js/device.js"></script>
+</body>
+</html>

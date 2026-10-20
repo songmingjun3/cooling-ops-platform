@@ -2,11 +2,12 @@ package com.cooling.platform.common.exception;
 
 import com.cooling.platform.common.response.Result;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import javax.validation.ConstraintViolation;
 import javax.validation.ConstraintViolationException;
@@ -46,7 +47,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public Result<Void> handleMethodArgumentNotValid(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()
-                .map(FieldError::getDefaultMessage)
+                .map(error -> error.isBindingFailure()
+                        ? "参数 " + error.getField() + " 的取值不合法: " + error.getRejectedValue()
+                        : error.getDefaultMessage())
                 .collect(Collectors.joining("；"));
         log.warn("参数校验失败: {}", message);
         return Result.fail(400, message);
@@ -55,13 +58,17 @@ public class GlobalExceptionHandler {
     /**
      * 处理表单/查询参数绑定校验失败。
      *
+     * <p>绑定失败（如枚举取值非法）时给出中文提示，避免把框架异常原文抛给前端。</p>
+     *
      * @param ex 绑定异常
      * @return 失败响应
      */
     @ExceptionHandler(BindException.class)
     public Result<Void> handleBindException(BindException ex) {
         String message = ex.getFieldErrors().stream()
-                .map(FieldError::getDefaultMessage)
+                .map(error -> error.isBindingFailure()
+                        ? "参数 " + error.getField() + " 的取值不合法: " + error.getRejectedValue()
+                        : error.getDefaultMessage())
                 .collect(Collectors.joining("；"));
         log.warn("参数绑定失败: {}", message);
         return Result.fail(400, message);
@@ -80,6 +87,30 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining("；"));
         log.warn("参数校验失败: {}", message);
         return Result.fail(400, message);
+    }
+
+    /**
+     * 处理请求体无法解析（JSON 格式错误、字段类型不匹配、枚举取值非法）。
+     *
+     * @param ex 消息不可读异常
+     * @return 失败响应
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public Result<Void> handleMessageNotReadable(HttpMessageNotReadableException ex) {
+        log.warn("请求体解析失败: {}", ex.getMessage());
+        return Result.fail(400, "请求参数格式不正确，请检查字段类型与枚举取值");
+    }
+
+    /**
+     * 处理路径变量 / 查询参数类型不匹配（如把非数字传给数值参数）。
+     *
+     * @param ex 类型不匹配异常
+     * @return 失败响应
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public Result<Void> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        log.warn("参数类型不匹配: name={}, value={}", ex.getName(), ex.getValue());
+        return Result.fail(400, "参数 " + ex.getName() + " 的取值不合法: " + ex.getValue());
     }
 
     /**
