@@ -167,28 +167,30 @@ HTTP/JSON ──► DeviceCreateDTO.params(Map)
 ├── data/                                  # SQLite 数据文件目录（*.db 已被 gitignore，目录保留）
 ├── logs/                                  # 运行日志输出目录（*.log 已被 gitignore）
 ├── export/                                # CSV 导出目录（运行时生成）
+├── scripts/
+│   └── e2e_verify.py                      # 端到端接口巡检脚本（53 个检查点）
 │
 ├── src/main/java/com/cooling/platform/
 │   ├── CoolingPlatformApplication.java    # 启动类
 │   ├── common/                            # 通用能力（跨模块复用）
 │   │   ├── constant/                      # DeviceConstants 常量、SensorCatalog 传感器元数据
 │   │   ├── enums/                         # 枚举：DeviceStatus / DeviceType / TowerType
-│   │   │                                  #       PumpType / AlarmLevel / AlarmStatus
+│   │   │                                  #       PumpType / AlarmLevel / AlarmStatus / CompareOp
 │   │   ├── exception/                     # BusinessException、GlobalExceptionHandler
 │   │   ├── response/                      # Result 统一响应、PageResult 分页结果
-│   │   └── util/                          # 工具：CsvExporter、DateUtils（待补充）
-│   ├── config/                            # 配置：Jackson 格式、SQLite 类型处理器、WebMvc 等
+│   │   └── util/                          # 工具：CsvExporter
+│   ├── config/                            # 配置：Jackson 格式、MyBatis 扫描、SQLite 类型处理器
 │   │   └── typehandler/                   # LocalDate / LocalDateTime ↔ SQLite 文本
 │   ├── controller/                        # Spring MVC 控制层（REST 接口，按模块拆分）
 │   ├── service/                           # 业务接口（按模块拆分）
 │   │   └── impl/                          # 业务实现
 │   ├── mapper/                            # MyBatis Mapper 接口
-│   ├── entity/                            # 领域模型 Device 及四个子类、Sensor、DevicePO
-│   ├── dto/                               # 请求对象：DeviceCreateDTO、DeviceQueryDTO 等
-│   ├── vo/                                # 响应对象：DeviceVO、DeviceDetailVO、ZoneGroupVO
+│   ├── entity/                            # 领域模型 Device 及四个子类、Sensor、DevicePO、各数据实体
+│   ├── dto/                               # 请求对象：DeviceCreateDTO、AlarmQueryDTO 等
+│   ├── vo/                                # 响应对象：DeviceVO、AlarmVO、TrendVO、StatisticsVO 等
 │   ├── converter/                         # Entity ↔ DTO/VO 转换（含 params JSON 编解码）
-│   ├── scheduler/                         # 定时任务：DataAcquisitionTask（MM-05，待实现）
-│   ├── rule/                              # 告警规则策略：AlarmRule + 注册表 + 各实现（待实现）
+│   ├── scheduler/                         # 定时任务：DataAcquisitionTask（MM-05 + 过期清理）
+│   ├── rule/                              # 告警规则策略：AlarmRule + 注册表 + 三种实现
 │   └── factory/                           # DeviceFactory 设备工厂、DeviceIdGenerator 编号生成
 │
 ├── src/main/resources/
@@ -198,14 +200,24 @@ HTTP/JSON ──► DeviceCreateDTO.params(Map)
 │   ├── db/
 │   │   ├── schema.sql                     # 建表脚本（幂等，启动自动执行）
 │   │   └── data.sql                       # 初始化示例数据（幂等，INSERT OR IGNORE）
-│   ├── mapper/                            # MyBatis XML 映射文件（DeviceMapper.xml）
+│   ├── mapper/                            # MyBatis XML 映射文件
 │   └── static/                            # 前端静态资源
-│       ├── index.html                     # 主界面（设备清单 / 分组 / 新增 / 编辑 / 详情）
+│       ├── index.html                     # 主界面（四个页签 + 四个弹窗）
 │       ├── css/app.css                    # 样式
-│       ├── js/device.js                   # 设备管理交互逻辑（原生 fetch）
-│       └── pages/  assets/                # 预留子页面与图片资源
+│       ├── js/common.js                   # 公共封装：请求、提示、页签切换
+│       ├── js/device.js                   # 设备管理（FM）
+│       ├── js/monitor.js                  # 运行监控（MM）
+│       ├── js/alarm.js                    # 告警与阈值（AM）
+│       └── js/analysis.js                 # 统计与趋势图（AN）
 │
-├── src/test/java/com/cooling/platform/    # 单元测试（与主代码同包结构）
+├── src/test/
+│   ├── java/com/cooling/platform/         # 测试代码（与主代码同包结构）
+│   │   ├── CoolingPlatformFlowTest.java   # 功能测试（真实上下文 + SQLite + HTTP）
+│   │   ├── common/util/CsvExporterTest.java
+│   │   ├── factory/                       # DeviceFactoryTest、DeviceIdGeneratorTest
+│   │   ├── rule/AlarmRuleTest.java
+│   │   └── controller/                    # 四个 Controller 的接口测试
+│   └── resources/application-test.yml     # 测试专用配置（独立数据库、关闭定时任务）
 │
 ├── pom.xml                                # Maven 构建与依赖
 ├── .gitignore                             # 忽略构建产物、数据库、日志、IDE 配置
@@ -314,28 +326,41 @@ java -jar target/cooling-ops-platform.jar
 | code | 含义 |
 | --- | --- |
 | `0` | 成功 |
-| `400` | 参数校验失败 |
-| `-1` | 通用业务失败（如设备不存在、编号重复） |
+| `400` | 参数校验失败 / 业务规则不允许 |
+| `404` | 资源不存在（设备、告警、阈值） |
 | `500` | 系统内部错误 |
+
+> 响应体的 `code` 与 HTTP 状态码保持一致：失败时 HTTP 也返回 4xx/5xx，
+> 前端与测试都可直接按 HTTP 语义判断成败。全部异常由 `GlobalExceptionHandler`
+> 统一转换为中文提示，不会把框架异常原文抛给用户。
 
 **接口清单**
 
 | 模块 | 方法与路径 | 说明 | 状态 |
 | --- | --- | --- | --- |
 | 设备 | `GET /api/devices` | 多条件分页查询（FM-04/05） | ✅ |
-| 设备 | `GET /api/devices/{deviceId}` | 设备详情（MM-01） | ✅ |
+| 设备 | `GET /api/devices/{deviceId}` | 设备详情含传感器与规格（FM-03） | ✅ |
 | 设备 | `POST /api/devices` | 新增，编号由后端生成（FM-01） | ✅ |
 | 设备 | `PUT /api/devices/{deviceId}` | 修改基本信息（FM-03） | ✅ |
 | 设备 | `DELETE /api/devices/{deviceId}` | 删除（FM-02） | ✅ |
 | 设备 | `GET /api/devices/group-by-zone` | 按区域分组（FM-06） | ✅ |
-| 监控 | `PATCH /api/devices/{deviceId}/status` | 启动 / 停机（MM-03/04） | ⬜ M3 |
-| 监控 | `GET /api/devices/type/{deviceType}` | 按类型批量查看（MM-02） | ⬜ M3 |
-| 告警 | `GET /api/alarms` | 告警列表，可按状态/级别过滤（AM-03） | ⬜ M4 |
-| 告警 | `PATCH /api/alarms/{id}/handle` | 处理告警（AM-04） | ⬜ M4 |
-| 告警 | `GET\|PUT /api/alarm-thresholds` | 阈值查询与配置（AM-01） | ⬜ M4 |
-| 分析 | `GET /api/statistics/overview` | 设备数量与状态分布（AN-01） | ⬜ M6 |
-| 分析 | `GET /api/statistics/trend` | 温度趋势点（AN-02） | ⬜ M6 |
-| 数据 | `GET /api/export/devices.csv` | 设备清单导出 CSV（PM-04） | ⬜ M5 |
+| 设备 | `GET /api/devices/export.csv` | 设备清单导出 CSV（PM-04） | ✅ |
+| 监控 | `GET /api/monitor/devices/{deviceId}` | 实时状态与最新采集值（MM-01） | ✅ |
+| 监控 | `GET /api/monitor/devices?deviceType=` | 按类型批量查看（MM-02） | ✅ |
+| 监控 | `POST /api/monitor/devices/{deviceId}/start` | 启动设备（MM-03） | ✅ |
+| 监控 | `POST /api/monitor/devices/{deviceId}/stop` | 停机设备（MM-04） | ✅ |
+| 监控 | `POST /api/monitor/collect` | 手动触发一次模拟采集（MM-05） | ✅ |
+| 告警 | `GET /api/alarms` | 告警列表，可按状态/级别/设备过滤（AM-03） | ✅ |
+| 告警 | `PATCH /api/alarms/{id}/handle` | 处理告警并留痕（AM-04） | ✅ |
+| 告警 | `GET /api/alarm-thresholds` | 阈值查询，可按设备类型过滤（AM-01） | ✅ |
+| 告警 | `POST /api/alarm-thresholds` | 新增阈值（AM-01） | ✅ |
+| 告警 | `PUT /api/alarm-thresholds/{id}` | 修改阈值（AM-01） | ✅ |
+| 告警 | `DELETE /api/alarm-thresholds/{id}` | 删除阈值（AM-01） | ✅ |
+| 告警 | `PATCH /api/alarm-thresholds/{id}/enabled` | 启用 / 停用阈值（AM-01） | ✅ |
+| 分析 | `GET /api/statistics/overview` | 设备数量与状态分布（AN-01） | ✅ |
+| 分析 | `GET /api/statistics/trend` | 温度趋势点（AN-02） | ✅ |
+| 数据 | `GET /api/logs/run` | 运行日志分页查询（PM-02） | ✅ |
+| 数据 | `GET /api/logs/alarm` | 告警日志按编号追踪（PM-03） | ✅ |
 
 **请求示例**
 
@@ -426,15 +451,93 @@ chore(build): 升级 sqlite-jdbc 版本
 | --- | --- | --- |
 | M1 | 仓库初始化、规范化目录、领域模型与枚举、数据库脚本、统一响应/异常 | ✅ 已完成 |
 | M2 | 设备管理模块 FM-01~06（Mapper / Service / Controller / 页面 / 接口联调） | ✅ 已完成 |
-| M3 | 运行监控模块 MM-01~05（含定时模拟采集） | ⬜ 待开始 |
-| M4 | 告警管理模块 AM-01~05（阈值配置、策略化检测、处理闭环） | ⬜ 待开始 |
-| M5 | 数据持久化与导出 PM-01~04（运行日志、告警日志、CSV 导出） | ⬜ 待开始 |
-| M6 | 分析与展示 AN-01~02（统计接口 + ECharts 趋势图） | ⬜ 待开始 |
-| M7 | 单元测试、异常场景演练、文档与答辩材料 | ⬜ 待开始 |
+| M3 | 运行监控模块 MM-01~05（含定时模拟采集） | ✅ 已完成 |
+| M4 | 告警管理模块 AM-01~05（阈值配置、策略化检测、处理闭环） | ✅ 已完成 |
+| M5 | 数据持久化与导出 PM-01~04（运行日志、告警日志、CSV 导出） | ✅ 已完成 |
+| M6 | 分析与展示 AN-01~02（统计接口 + ECharts 趋势图） | ✅ 已完成 |
+| M7 | 单元测试、接口测试、功能测试、文档与答辩材料 | ✅ 已完成 |
 
 ---
 
-## 十二、需求待澄清事项
+## 十二、测试
+
+测试分三层，共 **110 个用例**，全部通过。执行：
+
+```bash
+mvn test                                    # 全部三层
+mvn test -Dtest=AlarmRuleTest               # 只跑某个单元测试
+mvn test -Dtest=CoolingPlatformFlowTest     # 只跑功能测试
+python scripts/e2e_verify.py                # 端到端接口巡检（需先启动应用）
+```
+
+### 12.1 分层策略
+
+| 层次 | 关注点 | 技术手段 | 用例数 |
+| --- | --- | --- | --- |
+| 单元测试 | 纯逻辑：告警判定边界、参数校验红线、编号生成、CSV 转义 | JUnit 5 + Mockito，不起 Spring | 40 |
+| 接口测试 | 协议契约：路径、必填参数、统一响应、异常→HTTP 状态码 | `@WebMvcTest` + MockMvc，Mock 业务层 | 51 |
+| 功能测试 | 全链路：Controller → Service → Mapper → SQLite，含模块联动 | `@SpringBootTest(RANDOM_PORT)` + TestRestTemplate + 真实 SQLite | 19 |
+
+### 12.2 覆盖清单
+
+**单元测试**
+
+| 测试类 | 覆盖内容 |
+| --- | --- |
+| `AlarmRuleTest` | `GT` / `LT` / `DEVIATION` 三种策略的边界值（等于阈值不告警）、额定值非正时不除零、默认波动百分比、规则注册表的未知/未注册分支 |
+| `DeviceFactoryTest` | 四类设备实例化、`params` 强类型转换、未知键与非法枚举拒绝、负载率 0~1 与转速 0~100 边界、跨类型参数拒绝 |
+| `DeviceIdGeneratorTest` | 取最大序号加一（防删中间编号后撞主键）、三位补零、脏数据忽略、999 上限 |
+| `CsvExporterTest` | UTF-8 BOM、CRLF、逗号/引号/换行转义、null 渲染为空串 |
+
+**接口测试**
+
+| 测试类 | 覆盖内容 |
+| --- | --- |
+| `DeviceControllerTest` | 分页元信息、枚举非法返回中文提示、`pageSize` 越界、详情日期格式、404 / 500 映射、CSV 内容协商（`Accept: application/json` 仍返回 CSV） |
+| `MonitorControllerTest` | 实时状态、按类型批量、缺参 400、状态机 400、手动采集统计 |
+| `AlarmControllerTest` | 告警分页与多条件过滤、处理告警必填校验、重复处理、阈值 CRUD 与启停、波动百分比越界 |
+| `StatisticsLogControllerTest` | 统计分组结构、趋势参数校验（`limit` 上限 200）、日志分页默认值 |
+
+**功能测试（`CoolingPlatformFlowTest`）**
+
+19 个有序用例串成一条主线，验证模块间联动：
+
+1. 初始数据就绪（12 台设备 / 7 条阈值）；
+2. 新增冷却塔 → 编号自动为 `CT-004`；
+3. 多条件与关键字查询命中；
+4. 详情含 3 个传感器与规格参数；
+5. 修改基本信息不清空运行参数；
+6. 启动 → `RUNNING` 且传感器初始化为额定值；
+7. 重复启动被状态机拒绝；
+8. 手动采集只覆盖 `RUNNING` 设备；
+9. 实时值落在模拟区间内；
+10. 停机后不再产生运行日志；
+11. 阈值改为极低值并升级为 `CRITICAL`；
+12. 采集自动触发告警并落库；
+13. 处理告警 → 留痕 → 重复处理被拒 → 告警日志有两条动作；
+14. 阈值恢复出厂值；
+15. 运行日志按设备过滤；
+16. CSV 导出含新设备且带 BOM；
+17. 统计总数与状态分布自洽；
+18. 趋势点按时间正序；
+19. 删除后详情 404、列表回到 12 台。
+
+### 12.3 测试环境注意事项
+
+- 功能测试使用 `src/test/resources/application-test.yml`，数据库指向 `target/test-data/cooling-ops-test.db`，
+  并在类加载时删除旧库，保证每次从 `data.sql` 初始数据开始，**不会污染开发库 `./data/`**。
+- 测试配置中 `cooling.acquisition.enabled=false`，关闭定时采集，避免与用例的显式采集互相干扰。
+- JDK 自带 `HttpURLConnection` 不支持 `PATCH`，功能测试改用 Apache HttpClient 作为请求工厂。
+- `@MapperScan` 放在独立的 `MybatisConfig` 中，否则 `@WebMvcTest` 会尝试创建 Mapper Bean 而启动失败。
+
+### 12.4 端到端巡检脚本
+
+`scripts/e2e_verify.py` 在真实运行的应用上巡检 **53 个检查点**，覆盖 FM / MM / AM / PM / AN 全部功能点，
+包含越权路径（未知设备、非法枚举、重复处理、参数越界）的负向验证，并在结束时自动还原被修改的阈值配置。
+
+---
+
+## 十三、需求待澄清事项
 
 实现过程中发现需求文档存在少量前后不一致，已按下述方式处理，**需与指导教师确认**：
 
@@ -446,7 +549,7 @@ chore(build): 升级 sqlite-jdbc 版本
 
 ---
 
-## 十三、参考
+## 十四、参考
 
 - 需求文档：[`docs/requirements/数据中心冷却系统智能运维平台——系统需求文档.docx`](docs/requirements/)
 - 数据库脚本：[`src/main/resources/db/schema.sql`](src/main/resources/db/schema.sql)、[`src/main/resources/db/data.sql`](src/main/resources/db/data.sql)
