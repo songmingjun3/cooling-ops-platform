@@ -61,7 +61,10 @@
         App.$('monitorTitle').textContent = '设备运行状态 · ' + (App.TYPE_LABEL[state.deviceType] || '');
         App.$('monitorCards').innerHTML = '<p class="empty">加载中…</p>';
         request('/api/monitor/devices?deviceType=' + encodeURIComponent(state.deviceType))
-            .then(renderCards)
+            .then(function (list) {
+                renderCards(list);
+                App.markUpdated();
+            })
             .catch(function (err) {
                 App.$('monitorCards').innerHTML = '<p class="empty">' + escapeHtml(err.message) + '</p>';
                 toast(err.message, 'error');
@@ -73,7 +76,8 @@
             .then(function () {
                 toast(action === 'start' ? '设备已启动' : '设备已停机', 'success');
                 load();
-                document.dispatchEvent(new CustomEvent('data:changed'));
+                // 通知总览与设备台账：状态变了，首页数字与列表都要跟着变
+                App.notifyChange();
             })
             .catch(function (err) {
                 toast(err.message, 'error');
@@ -87,7 +91,7 @@
                 toast('采集完成：' + result.deviceCount + ' 台设备 / ' + result.dataPoints
                     + ' 个数据点 / 新告警 ' + result.newAlarms + ' 条', 'success');
                 load();
-                document.dispatchEvent(new CustomEvent('data:changed'));
+                App.notifyChange();
             })
             .catch(function (err) {
                 toast(err.message, 'error');

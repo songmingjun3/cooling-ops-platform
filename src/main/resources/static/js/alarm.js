@@ -18,6 +18,9 @@
         thresholds: []
     };
 
+    /** 告警列表请求序号，避免并发响应互相覆盖 */
+    var listSeq = 0;
+
     /* ------------------------------ 告警列表 ------------------------------ */
 
     function loadAlarms() {
@@ -33,14 +36,22 @@
 
         var tbody = App.$('alarmTbody');
         tbody.innerHTML = '<tr><td colspan="8" class="empty">加载中…</td></tr>';
+        var seq = ++listSeq;
         request('/api/alarms?' + params.toString())
             .then(function (page) {
+                if (seq !== listSeq) {
+                    return;
+                }
                 renderAlarmRows(page.list);
                 renderAlarmPager(page);
+                App.markUpdated();
                 /* 顺带刷新左侧导航的未处理告警计数 */
                 App.refreshAlarmBadge();
             })
             .catch(function (err) {
+                if (seq !== listSeq) {
+                    return;
+                }
                 tbody.innerHTML = '<tr><td colspan="8" class="empty">' + escapeHtml(err.message) + '</td></tr>';
                 toast(err.message, 'error');
             });
@@ -104,8 +115,8 @@
         }).then(function () {
             App.$('handleModal').classList.add('hidden');
             toast('告警已处理', 'success');
-            loadAlarms();
-            document.dispatchEvent(new CustomEvent('data:changed'));
+            // 由 notifyChange 广播，告警页与总览页各自刷新，避免重复请求
+            App.notifyChange();
         }).catch(function (err) {
             toast(err.message, 'error');
         });
@@ -283,17 +294,22 @@
             }
             var delBtn = e.target.closest('[data-th-del]');
             if (delBtn) {
-                if (!window.confirm('确认删除该阈值配置吗？')) {
-                    return;
-                }
-                request('/api/alarm-thresholds/' + delBtn.getAttribute('data-th-del'), {method: 'DELETE'})
-                    .then(function () {
-                        toast('阈值已删除', 'success');
-                        loadThresholds();
-                    })
-                    .catch(function (err) {
-                        toast(err.message, 'error');
-                    });
+                App.confirm('确认删除该阈值配置吗？删除后该参数不再参与自动判定。', {
+                    title: '删除阈值',
+                    okText: '删除'
+                }).then(function (ok) {
+                    if (!ok) {
+                        return;
+                    }
+                    request('/api/alarm-thresholds/' + delBtn.getAttribute('data-th-del'), {method: 'DELETE'})
+                        .then(function () {
+                            toast('阈值已删除', 'success');
+                            loadThresholds();
+                        })
+                        .catch(function (err) {
+                            toast(err.message, 'error');
+                        });
+                });
             }
         });
 
@@ -309,9 +325,20 @@
                 loadAlarms();
             }
         });
-
-        loadAlarms();
     }
+
+    /* 供总览页调用：跳转后预置筛选、直接打开处理弹窗 */
+    App.filterAlarms = function (options) {
+        var opts = options || {};
+        App.$('qAlarmStatus').value = opts.status || '';
+        App.$('qAlarmLevel').value = opts.alarmLevel || '';
+        state.pageNum = 1;
+        loadAlarms();
+    };
+    App.openHandleAlarm = function (id) {
+        App.showTab('alarm');
+        openHandle(id);
+    };
 
     document.addEventListener('DOMContentLoaded', bind);
 })();

@@ -168,7 +168,8 @@ HTTP/JSON ──► DeviceCreateDTO.params(Map)
 ├── logs/                                  # 运行日志输出目录（*.log 已被 gitignore）
 ├── export/                                # CSV 导出目录（运行时生成）
 ├── scripts/
-│   └── e2e_verify.py                      # 端到端接口巡检脚本（53 个检查点）
+│   ├── e2e_verify.py                      # 端到端接口巡检脚本（53 个检查点）
+│   └── e2e-ui.js                          # 端到端界面测试脚本（60 个检查点，CDP 驱动真实浏览器）
 │
 ├── src/main/java/com/cooling/platform/
 │   ├── CoolingPlatformApplication.java    # 启动类
@@ -202,9 +203,10 @@ HTTP/JSON ──► DeviceCreateDTO.params(Map)
 │   │   └── data.sql                       # 初始化示例数据（幂等，INSERT OR IGNORE）
 │   ├── mapper/                            # MyBatis XML 映射文件
 │   └── static/                            # 前端静态资源
-│       ├── index.html                     # 主界面（四个页签 + 四个弹窗）
-│       ├── css/app.css                    # 样式
-│       ├── js/common.js                   # 公共封装：请求、提示、页签切换
+│       ├── index.html                     # 主界面（五个页签 + 五个弹窗）
+│       ├── css/app.css                    # 样式（CSS 变量设计令牌 + 三档响应式）
+│       ├── js/common.js                   # 公共封装：请求、提示、确认弹窗、页签切换
+│       ├── js/dashboard.js                # 运行总览（拓扑大屏 / KPI / 设备概况）
 │       ├── js/device.js                   # 设备管理（FM）
 │       ├── js/monitor.js                  # 运行监控（MM）
 │       ├── js/alarm.js                    # 告警与阈值（AM）
@@ -456,18 +458,45 @@ chore(build): 升级 sqlite-jdbc 版本
 | M5 | 数据持久化与导出 PM-01~04（运行日志、告警日志、CSV 导出） | ✅ 已完成 |
 | M6 | 分析与展示 AN-01~02（统计接口 + ECharts 趋势图） | ✅ 已完成 |
 | M7 | 单元测试、接口测试、功能测试、文档与答辩材料 | ✅ 已完成 |
+| M8 | 前端布局重构、运行总览大屏（拓扑 + 概况）、界面端到端测试 | ✅ 已完成 |
+
+### 11.1 页面结构
+
+界面为单页应用，左侧固定导航 + 右侧主内容区，共五个页签：
+
+| 页签 | 职责 | 数据来源 |
+| --- | --- | --- |
+| **运行总览**（默认首页） | KPI 指标行、设备连接关系拓扑大屏、设备概况（类型 × 状态矩阵）、区域分布、最近告警 | `/api/devices`、`/api/statistics/overview`、`/api/alarms`、`/api/monitor/devices` |
+| 设备管理 | 台账列表 / 按区域分组、多条件查询、分页、新增、编辑、删除、详情、CSV 导出 | `/api/devices/**` |
+| 运行监控 | 按类型查看实时参数、启停状态机、立即采集 | `/api/monitor/**` |
+| 告警管理 | 告警记录与处理闭环、阈值规则 CRUD 与启停 | `/api/alarms`、`/api/alarm-thresholds` |
+| 数据分析 | 运行统计分布、运行参数趋势（SVG 折线 + 悬停读数） | `/api/statistics/**` |
+
+**关于设备概况的位置**：设备概况只在「运行总览」出现，不再放在页头。
+页头仅保留页面标题、一句话说明与「数据更新于 HH:mm:ss」的全局状态，
+避免每个功能页重复渲染同一组统计数字，也避免数字与当前页内容无关造成的误导。
+
+**设备连接关系拓扑**按真实制冷流程绘制，分两条回路：
+
+- 冷却水回路：冷却塔 → 冷却水泵 → 冷水机组（冷凝侧散热）
+- 冷冻水回路：冷水机组 → 冷冻水泵 → 精密空调（末端供冷），再由底部虚线回到冷水机组
+
+节点按运行状态着色（绿=运行 / 红=故障 / 灰=停机 / 橙=维护），
+运行中的回路带流动动画；点击节点直接打开该设备的详情弹窗；
+水泵归属哪条回路取自监控接口返回的「水泵类型」规格参数，取不到时回退到名称关键字判断。
 
 ---
 
 ## 十二、测试
 
-测试分三层，共 **110 个用例**，全部通过。执行：
+测试分四层，共 **110 个 JUnit 用例 + 53 个接口检查点 + 60 个界面检查点**，全部通过。执行：
 
 ```bash
-mvn test                                    # 全部三层
+mvn test                                    # 三层 JUnit 用例
 mvn test -Dtest=AlarmRuleTest               # 只跑某个单元测试
 mvn test -Dtest=CoolingPlatformFlowTest     # 只跑功能测试
 python scripts/e2e_verify.py                # 端到端接口巡检（需先启动应用）
+node scripts/e2e-ui.js --url http://127.0.0.1:18082   # 端到端界面测试（需先启动应用）
 ```
 
 ### 12.1 分层策略
@@ -477,6 +506,8 @@ python scripts/e2e_verify.py                # 端到端接口巡检（需先启�
 | 单元测试 | 纯逻辑：告警判定边界、参数校验红线、编号生成、CSV 转义 | JUnit 5 + Mockito，不起 Spring | 40 |
 | 接口测试 | 协议契约：路径、必填参数、统一响应、异常→HTTP 状态码 | `@WebMvcTest` + MockMvc，Mock 业务层 | 51 |
 | 功能测试 | 全链路：Controller → Service → Mapper → SQLite，含模块联动 | `@SpringBootTest(RANDOM_PORT)` + TestRestTemplate + 真实 SQLite | 19 |
+| 接口端到端 | 运行中实例的全量接口巡检与负向路径 | `scripts/e2e_verify.py`（Python 标准库） | 53 检查点 |
+| 界面端到端 | 用户可见行为：点击、填表、DOM 状态、控制台异常、响应式 | `scripts/e2e-ui.js`（Node + CDP 驱动真实浏览器） | 60 检查点 |
 
 ### 12.2 覆盖清单
 
@@ -534,6 +565,48 @@ python scripts/e2e_verify.py                # 端到端接口巡检（需先启�
 
 `scripts/e2e_verify.py` 在真实运行的应用上巡检 **53 个检查点**，覆盖 FM / MM / AM / PM / AN 全部功能点，
 包含越权路径（未知设备、非法枚举、重复处理、参数越界）的负向验证，并在结束时自动还原被修改的阈值配置。
+
+### 12.5 界面端到端测试
+
+`scripts/e2e-ui.js` 用 Node 内置 WebSocket 直连 Chromium 调试协议（CDP）驱动真实浏览器，
+不依赖 Playwright / Puppeteer，也无需 `npm install`。它在界面上真实点击、填表、读 DOM，
+验证的是「用户看到的东西」，与只打接口的巡检脚本互补。
+
+建议单独起一个实例，使用独立数据库，避免污染开发数据：
+
+```bash
+java -jar target/cooling-ops-platform.jar \
+     --server.port=18082 \
+     --spring.datasource.url=jdbc:sqlite:./target/e2e-data/e2e-ui.db \
+     --cooling.acquisition.enabled=false
+
+node scripts/e2e-ui.js --url http://127.0.0.1:18082
+```
+
+**60 个检查点**按功能域分组：
+
+| 分组 | 检查内容 |
+| --- | --- |
+| A 启动与导航 | 默认落在运行总览、五个页签各自唯一显示、页头不再有设备概况、更新时间戳、无遗漏可见面板 |
+| B 运行总览大屏 | 六项 KPI 与接口一致、拓扑节点数=设备数、五列顺序、4 段供水 + 2 条回水、流动动画、矩阵每行状态和=总数、矩阵合计=KPI、区域条数、点击节点开详情、KPI 卡跳转并预置筛选 |
+| C 设备管理 | 分页、翻页、关键字、类型筛选、重置、区域分组、详情三段、必填校验、新增回显编号、编辑（类型不可改）、删除取消/确认两条分支 |
+| D 运行监控 | 按类型切换卡片、停机设备启动后变运行中、维护中设备给出启停限制、立即采集、采集后显示采集时间 |
+| E 告警管理 | 列表加载、阈值加载、新增阈值、采集触发新告警、处理必填校验、处理后移出待办、阈值启停、删除阈值 |
+| F 数据分析 | 七项统计卡、三类分布图、趋势图绘制、**按容器宽度等比绘制（文字不变形）**、悬停显示单点数值 |
+| G 全局一致性 | 总览数字实时同步、无原生 `confirm` 弹窗、无未捕获异常、无 `console.error` |
+| H 响应式 | 900px 侧栏收为图标条、430px 导航「图标上文字下」、KPI 两列、拓扑横向滚动 |
+
+失败时会把现场截图写入 `target/e2e-ui/`，并以退出码 1 结束，便于接入 CI。
+
+### 12.6 本机环境注意事项
+
+- 部分 Windows 环境的安全策略会拦截 `wmic.exe`，而 Maven Surefire 2.22 在 Windows 上正是用
+  `wmic` 结束测试进程树，导致 `mvn test` 报「PROGRAM BLOCKED」。此时改用 `mvn test -DforkCount=0`
+  即可（测试全部在 Maven 进程内运行），测试用例本身无需改动。
+- 本机存在环境变量 `SERVER__PORT`，会覆盖 `server.port`；用命令行参数 `--server.port=xxxx`
+  启动可优先于该环境变量。
+- 前端改动后若 `spring-boot:run` 正在运行，可用
+  `cp -r src/main/resources/static/. target/classes/static/` 热同步静态资源，无需重启。
 
 ---
 

@@ -72,7 +72,7 @@ h1, h2, h3, h4 {
 }
 
 /* 数字统一等宽，避免刷新时宽度跳动 */
-.stat-value, .stat-card .n, .mon-item .v, .bar-item .count {
+.stat-card .n, .mon-item .v, .bar-item .count, .kpi-value, .matrix td {
     font-variant-numeric: tabular-nums;
 }
 
@@ -362,62 +362,37 @@ h1, h2, h3, h4 {
     color: var(--text-muted);
 }
 
-.stats {
+/*
+ * 页头右侧只显示「数据更新于」这类全局状态。
+ * 设备概况属于首页内容，不再放在页头重复展示。
+ */
+.header-meta {
     display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.stat {
-    min-width: 104px;
-    padding: 7px 15px;
-    border-radius: 11px;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px 6px 12px;
+    border-radius: 999px;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-left: 3px solid var(--border-strong);
-    box-shadow: 0 1px 2px rgba(19, 37, 61, .03);
-    text-align: left;
-    transition: transform .18s ease, box-shadow .18s ease;
-}
-
-.stat:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--shadow);
-}
-
-.stat-ok {
-    border-left-color: var(--ok);
-}
-
-.stat-warn {
-    border-left-color: var(--warn);
-}
-
-.stat-value {
-    display: block;
-    font-size: 19px;
-    font-weight: 700;
-    line-height: 1.25;
-    color: var(--text);
-}
-
-.stat-value.ok {
-    color: var(--ok);
-}
-
-.stat-value.warn {
-    color: var(--warn);
-}
-
-.stat-value.muted {
-    color: var(--primary);
-}
-
-.stat-label {
-    display: block;
-    font-size: 11.5px;
+    font-size: 12px;
     color: var(--text-muted);
-    letter-spacing: .2px;
+    font-variant-numeric: tabular-nums;
+}
+
+.live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ok);
+    box-shadow: 0 0 0 3px rgba(16, 160, 90, .14);
+    animation: live-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+    50% {
+        box-shadow: 0 0 0 6px rgba(16, 160, 90, .04);
+        opacity: .7;
+    }
 }
 
 .container {
@@ -1265,27 +1240,60 @@ select {
     color: var(--text);
 }
 
+/* 趋势图外壳：为跟随鼠标的数值气泡提供定位参照 */
+.trend-wrap {
+    position: relative;
+}
+
 .trend-chart {
-    min-height: 240px;
+    min-height: 264px;
     padding: 12px;
     border: 1px solid var(--border);
     border-radius: 12px;
     background: linear-gradient(180deg, #fbfdff, #f6fafe);
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 /* 空状态不需要额外的表格内边距，交给容器居中即可 */
 .trend-chart .empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 240px;
     padding: 0 !important;
     background: none;
 }
 
+/* 尺寸由脚本按容器宽度算出并写进 width/height，CSS 不再强制缩放 */
 .trend-svg {
     display: block;
-    width: 100%;
-    height: 240px;
+}
+
+.trend-tip {
+    position: absolute;
+    z-index: 5;
+    transform: translate(-50%, -125%);
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: #172335;
+    color: #fff;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 14px 28px -14px rgba(10, 24, 41, .7);
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.trend-tip strong {
+    font-size: 13.5px;
+    font-weight: 700;
+}
+
+.trend-tip span {
+    color: #a9bdd4;
+    font-size: 11px;
 }
 
 /* =====================================================================
@@ -1489,6 +1497,561 @@ select {
 }
 
 /* =====================================================================
+   运行总览（大屏）
+   ===================================================================== */
+
+/* ---------------- KPI 指标行 ---------------- */
+
+.kpi-row {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.kpi {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 13px 15px;
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.kpi:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-strong);
+    box-shadow: 0 16px 32px -20px rgba(19, 37, 61, .42);
+}
+
+.kpi:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.kpi-mark {
+    flex: none;
+    width: 4px;
+    height: 36px;
+    border-radius: 3px;
+    background: var(--border-strong);
+}
+
+.kpi-mark-total {
+    background: #8195ad;
+}
+
+.kpi-mark-running {
+    background: var(--ok);
+}
+
+.kpi-mark-abnormal {
+    background: var(--danger);
+}
+
+.kpi-mark-maintenance {
+    background: var(--warn);
+}
+
+.kpi-mark-alarm {
+    background: var(--violet);
+}
+
+.kpi-mark-zone {
+    background: var(--primary);
+}
+
+.kpi-body {
+    display: block;
+    min-width: 0;
+}
+
+.kpi-value {
+    display: block;
+    font-size: 23px;
+    font-weight: 700;
+    line-height: 1.15;
+    color: var(--text);
+}
+
+.kpi-value.ok {
+    color: var(--ok);
+}
+
+.kpi-value.danger {
+    color: var(--danger);
+}
+
+.kpi-value.warn {
+    color: var(--warn);
+}
+
+.kpi-value.violet {
+    color: var(--violet);
+}
+
+.kpi-value.primary {
+    color: var(--primary);
+}
+
+.kpi-label {
+    display: block;
+    font-size: 11.5px;
+    color: var(--text-muted);
+    letter-spacing: .2px;
+    white-space: nowrap;
+}
+
+/* ---------------- 拓扑大屏 ---------------- */
+
+/*
+ * 拓扑用深色面板：一方面与深色侧栏呼应形成「监控大屏」观感，
+ * 另一方面供水管路的亮色描边与流动动画在深底上对比度更高。
+ */
+.screen-card {
+    background: linear-gradient(158deg, #0b1a2c 0%, #102941 58%, #0d2136 100%);
+    border-color: rgba(88, 150, 214, .22);
+    box-shadow: 0 22px 48px -30px rgba(8, 24, 44, .8);
+    overflow: hidden;
+}
+
+.screen-card .card-head {
+    border-bottom-color: rgba(120, 170, 220, .14);
+}
+
+.screen-card h2 {
+    color: #eaf3ff;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.screen-card h2 .hint {
+    font-size: 11.5px;
+    font-weight: 400;
+    color: #7e9cbb;
+}
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    font-size: 11.5px;
+    color: #8aa6c4;
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.lg-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #5f7387;
+}
+
+.lg-running {
+    background: #35d18a;
+    box-shadow: 0 0 0 3px rgba(53, 209, 138, .18);
+}
+
+.lg-fault {
+    background: #ff6b6b;
+}
+
+.lg-stop {
+    background: #8fa3bb;
+}
+
+.lg-maint {
+    background: #f2b23e;
+}
+
+.lg-line {
+    width: 20px;
+    height: 0;
+    border-top: 2px solid #6fd3ff;
+}
+
+.lg-line.lg-return {
+    border-top: 2px dashed #8fa6c0;
+}
+
+/* 宽屏五列放得下，只有窄屏才提示可以横向滑动 */
+.topology-tip {
+    display: none;
+    margin: -4px 0 10px;
+    font-size: 11.5px;
+    color: #7e9cbb;
+    letter-spacing: .5px;
+}
+
+/* 拓扑在窄屏下横向滚动，保持每个节点的字号可读 */
+.topology-scroll {
+    overflow-x: auto;
+    margin: 0 -4px;
+    padding: 0 4px;
+}
+
+.topology {
+    min-height: 220px;
+}
+
+.topo-svg {
+    display: block;
+    width: 100%;
+    min-width: 1000px;
+    height: auto;
+}
+
+.topo-grid line {
+    stroke: rgba(120, 180, 240, .06);
+    stroke-width: 1;
+}
+
+.topo-col-title {
+    fill: #6f90b3;
+    font-size: 11.5px;
+    letter-spacing: 1.4px;
+    font-weight: 600;
+}
+
+.topo-stub,
+.topo-manifold {
+    stroke: #4585b8;
+    stroke-width: 1.8;
+    stroke-opacity: .55;
+    stroke-linecap: round;
+}
+
+.topo-pipe {
+    stroke: #4f9ad0;
+    stroke-width: 2.2;
+    stroke-opacity: .65;
+    stroke-linecap: round;
+}
+
+/* 流动感：虚线位移，仅运行中的回路开启 */
+.topo-pipe-flow {
+    stroke: url(#flowGrad);
+    stroke-width: 3.4;
+    stroke-dasharray: 12 16;
+    stroke-linecap: round;
+    animation: pipe-flow 1.1s linear infinite;
+}
+
+@keyframes pipe-flow {
+    to {
+        stroke-dashoffset: -28;
+    }
+}
+
+.topo-pipe-label {
+    fill: #86b8dd;
+    font-size: 10.5px;
+    letter-spacing: .6px;
+}
+
+.topo-return {
+    fill: none;
+    stroke: #8095ad;
+    stroke-width: 1.6;
+    stroke-dasharray: 7 6;
+    stroke-opacity: .75;
+}
+
+.topo-return.is-flowing {
+    animation: pipe-flow 1.6s linear infinite;
+}
+
+.topo-return-label {
+    fill: #7d90a6;
+    font-size: 10px;
+    letter-spacing: .5px;
+}
+
+.topo-empty {
+    fill: rgba(22, 46, 70, .35);
+    stroke: rgba(110, 150, 190, .35);
+    stroke-dasharray: 5 5;
+    stroke-width: 1;
+}
+
+.topo-empty-text {
+    fill: #6a86a4;
+    font-size: 11.5px;
+}
+
+/* 拓扑节点 */
+.tnode {
+    cursor: pointer;
+}
+
+.tnode-box {
+    fill: rgba(17, 42, 65, .94);
+    stroke-width: 1.2;
+    stroke-opacity: .6;
+    transition: stroke-opacity .18s ease, fill .18s ease;
+}
+
+.tnode:hover .tnode-box,
+.tnode:focus-visible .tnode-box {
+    stroke: #9fe4ff;
+    stroke-opacity: 1;
+    fill: rgba(24, 56, 84, .98);
+}
+
+.tnode:focus-visible {
+    outline: none;
+}
+
+.tnode-id {
+    fill: #7ba9cd;
+    font-size: 11px;
+    font-family: Consolas, "Courier New", monospace;
+    letter-spacing: .3px;
+}
+
+.tnode-name {
+    fill: #e9f4ff;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.tnode-val {
+    fill: #8aa8c5;
+    font-size: 10.5px;
+}
+
+.tnode.is-running .tnode-dot {
+    animation: dot-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes dot-breathe {
+    50% {
+        opacity: .45;
+    }
+}
+
+/* ---------------- 概况三联 ---------------- */
+
+.dash-row {
+    display: grid;
+    grid-template-columns: 1.32fr 1fr 1.18fr;
+    gap: 18px;
+    align-items: start;
+}
+
+.matrix-wrap {
+    overflow-x: auto;
+}
+
+.matrix {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.matrix th,
+.matrix td {
+    padding: 8px 10px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+}
+
+.matrix th {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--surface-2);
+    white-space: nowrap;
+}
+
+.matrix th.m-RUNNING {
+    color: var(--ok);
+}
+
+.matrix th.m-FAULT {
+    color: var(--danger);
+}
+
+.matrix th.m-MAINTENANCE {
+    color: var(--warn);
+}
+
+.matrix td.m-type {
+    text-align: left;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.matrix td.m-total {
+    font-weight: 700;
+}
+
+.matrix td.m-zero {
+    color: #c3cedd;
+}
+
+.matrix td.m-hit {
+    font-weight: 600;
+}
+
+.matrix td.m-hit.m-RUNNING {
+    color: var(--ok);
+}
+
+.matrix td.m-hit.m-FAULT {
+    color: var(--danger);
+}
+
+.matrix td.m-hit.m-MAINTENANCE {
+    color: var(--warn);
+}
+
+.matrix tr.m-sum td {
+    border-bottom: none;
+    background: var(--surface-2);
+    font-weight: 700;
+}
+
+.matrix tbody tr:hover td {
+    background: #f5f9ff;
+}
+
+.zone-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+}
+
+.zone-sum-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.zone-sum-line {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12.5px;
+}
+
+.zone-sum-name {
+    font-weight: 600;
+}
+
+.zone-sum-count {
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.zone-sum-bar {
+    display: flex;
+    height: 7px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--surface-3);
+}
+
+.zbar-seg {
+    height: 100%;
+}
+
+.zbar-seg.z-RUNNING {
+    background: var(--ok);
+}
+
+.zbar-seg.z-STOPPED {
+    background: #b9c6d6;
+}
+
+.zbar-seg.z-FAULT {
+    background: var(--danger);
+}
+
+.zbar-seg.z-MAINTENANCE {
+    background: var(--warn);
+}
+
+.zbar-seg.z-OFFLINE {
+    background: #93a3b7;
+}
+
+/* ---------------- 最近告警 ---------------- */
+
+.alarm-mini {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.alarm-mini-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-2);
+}
+
+.alarm-mini-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.alarm-mini-title {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.alarm-mini-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.alarm-mini-value {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-mid);
+    font-variant-numeric: tabular-nums;
+}
+
+/* =====================================================================
+   确认弹窗
+   ===================================================================== */
+
+.modal-panel-sm {
+    max-width: 420px;
+}
+
+.confirm-text {
+    margin: 0;
+    font-size: 13.5px;
+    line-height: 1.75;
+    color: var(--text-mid);
+}
+
+/* =====================================================================
    响应式
    ===================================================================== */
 
@@ -1558,6 +2121,24 @@ select {
     .data-table th,
     .data-table td {
         padding: 9px 9px;
+    }
+
+    /* 总览：指标行由 6 列降为 3 列，概况三联改为两列 */
+    .kpi-row {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .dash-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .dash-row .card:first-child {
+        grid-column: 1 / -1;
+    }
+
+    /* 五列拓扑在中等宽度下放不满，提示可以横向滑动 */
+    .topology-tip {
+        display: block;
     }
 }
 
@@ -1640,6 +2221,24 @@ select {
     .sub {
         display: none;
     }
+
+    /* 窄屏下概况三联改为单列，指标卡两列 */
+    .kpi-row {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .dash-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .legend {
+        gap: 10px;
+        font-size: 11px;
+    }
+
+    .topo-svg {
+        min-width: 920px;
+    }
 }
 
 /* 手机：表单与统计堆叠 */
@@ -1650,21 +2249,6 @@ select {
     }
 
     .page-title h1 {
-        font-size: 17px;
-    }
-
-    .stats {
-        width: 100%;
-        gap: 8px;
-    }
-
-    .stat {
-        flex: 1 1 0;
-        min-width: 0;
-        padding: 6px 10px;
-    }
-
-    .stat-value {
         font-size: 17px;
     }
 
@@ -1709,6 +2293,34 @@ select {
 
     .mon-body {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    /* 手机：指标卡两列，数值略缩，标题换行不被挤压 */
+    .kpi-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .kpi {
+        padding: 11px 12px;
+        gap: 10px;
+    }
+
+    .kpi-value {
+        font-size: 20px;
+    }
+
+    .header-meta {
+        padding: 5px 10px;
+        font-size: 11.5px;
+    }
+
+    .screen-card {
+        padding: 15px 12px;
+    }
+
+    .screen-card h2 .hint {
+        display: none;
     }
 
     .toast {

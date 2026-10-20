@@ -7,6 +7,9 @@
 
     var API = '/api/devices';
 
+    /** 列表请求序号，用于丢弃过期响应 */
+    var listSeq = 0;
+
     /** 页面状态 */
     var state = {
         pageNum: 1,
@@ -86,15 +89,33 @@
     function loadList() {
         var tbody = $('deviceTbody');
         tbody.innerHTML = '<tr><td colspan="7" class="empty">加载中…</td></tr>';
+        /*
+         * 请求序号：切页签 + 预置筛选时可能连发两次查询，
+         * 响应到达顺序无法保证，只认最后一次发出的请求，避免旧数据覆盖新结果。
+         */
+        var seq = ++listSeq;
         request(API + '?' + buildQuery())
             .then(function (page) {
+                if (seq !== listSeq) {
+                    return;
+                }
+                // 删除末页最后一条后页码会越界，回退一页重新拉取，避免停在空白页
+                if (page.total > 0 && page.list.length === 0 && state.pageNum > 1) {
+                    state.pageNum = Math.max(1, page.pageNum - 1);
+                    loadList();
+                    return;
+                }
                 state.total = page.total;
                 state.pageNum = page.pageNum;
                 renderTable(page.list);
                 renderPager(page);
                 $('listTitle').textContent = '设备清单（共 ' + page.total + ' 台）';
+                App.markUpdated();
             })
             .catch(function (err) {
+                if (seq !== listSeq) {
+                    return;
+                }
                 tbody.innerHTML = '<tr><td colspan="7" class="empty">' + escapeHtml(err.message) + '</td></tr>';
                 toast(err.message, 'error');
             });
@@ -151,33 +172,11 @@
     function loadZones() {
         return request(API + '/group-by-zone').then(function (groups) {
             renderZones(groups);
-            renderStats(groups);
             fillZoneOptions(groups);
             return groups;
         }).catch(function (err) {
             toast(err.message, 'error');
         });
-    }
-
-    function renderStats(groups) {
-        var total = 0;
-        var running = 0;
-        var abnormal = 0;
-        groups.forEach(function (group) {
-            group.devices.forEach(function (d) {
-                total++;
-                if (d.status === 'RUNNING') {
-                    running++;
-                }
-                if (d.status === 'FAULT' || d.status === 'OFFLINE') {
-                    abnormal++;
-                }
-            });
-        });
-        $('statTotal').textContent = total;
-        $('statRunning').textContent = running;
-        $('statAbnormal').textContent = abnormal;
-        $('statZone').textContent = groups.length;
     }
 
     function fillZoneOptions(groups) {
@@ -351,7 +350,7 @@
         promise.then(function (deviceId) {
             $('formModal').classList.add('hidden');
             toast(isEdit ? '修改成功' : '新增成功，设备编号 ' + deviceId, 'success');
-            refresh();
+            App.notifyChange();
         }).catch(function (err) {
             toast(err.message, 'error');
         });
@@ -406,18 +405,27 @@
         });
     }
 
+    /**
+     * 删除设备：用页面内二次确认弹窗替代原生 confirm，
+     * 既保持视觉统一，也便于端到端测试稳定驱动「确定 / 取消」两条分支。
+     */
     function removeDevice(deviceId) {
-        if (!window.confirm('确认删除设备 ' + deviceId + ' 吗？\n删除后该设备的采集数据将一并清理，操作不可恢复。')) {
-            return;
-        }
-        request(API + '/' + encodeURIComponent(deviceId), {method: 'DELETE'})
-            .then(function () {
-                toast('删除成功', 'success');
-                refresh();
-            })
-            .catch(function (err) {
-                toast(err.message, 'error');
-            });
+        App.confirm('确认删除设备 ' + deviceId + ' 吗？删除后该设备的采集数据与告警记录将一并清理，操作不可恢复。', {
+            title: '删除设备',
+            okText: '删除'
+        }).then(function (ok) {
+            if (!ok) {
+                return;
+            }
+            request(API + '/' + encodeURIComponent(deviceId), {method: 'DELETE'})
+                .then(function () {
+                    toast('删除成功', 'success');
+                    App.notifyChange();
+                })
+                .catch(function (err) {
+                    toast(err.message, 'error');
+                });
+        });
     }
 
     /* ----------------------------- 视图与事件 ----------------------------- */
@@ -427,9 +435,18 @@
         loadList();
     }
 
+    /**
+     * 切换「列表视图 / 按区域分组」。
+     * 只能作用于设备页自身的分段控件：早期实现用全局 .seg 选择器，
+     * 会把运行监控的类型分组、告警页的视图分组一起改掉，
+     * 导致回到设备页时列表与分组都被隐藏。
+     */
     function switchView(view) {
+        if (view !== 'list' && view !== 'zone') {
+            return;
+        }
         state.view = view;
-        var segs = document.querySelectorAll('.seg');
+        var segs = document.querySelectorAll('#tab-device .seg[data-view]');
         Array.prototype.forEach.call(segs, function (seg) {
             seg.classList.toggle('active', seg.getAttribute('data-view') === view);
         });
@@ -496,30 +513,60 @@
             loadList();
         });
 
-        // 视图切换
-        document.querySelectorAll('.seg').forEach(function (seg) {
-            seg.addEventListener('click', function () {
-                switchView(seg.getAttribute('data-view'));
+        // 视图切换（仅限设备页自身的分段控件）
+        Array.prototype.forEach.call(
+            document.querySelectorAll('#tab-device .seg[data-view]'),
+            function (seg) {
+                seg.addEventListener('click', function () {
+                    switchView(seg.getAttribute('data-view'));
+                });
             });
-        });
 
-        // 弹窗关闭
-        document.querySelectorAll('[data-close]').forEach(function (el) {
-            el.addEventListener('click', function () {
-                $(el.getAttribute('data-close')).classList.add('hidden');
-            });
-        });
-        document.querySelectorAll('.modal').forEach(function (modal) {
-            modal.addEventListener('click', function (e) {
-                if (e.target === modal) {
-                    modal.classList.add('hidden');
-                }
-            });
-        });
+        // 弹窗的关闭与遮罩点击统一由 common.js 绑定，此处不再重复注册
+    }
+
+    /**
+     * 供总览页调用的筛选入口：外部指定条件后切到设备页并立即查询。
+     *
+     * @param {Object} options 可选字段：keyword / deviceType / zone / status；reset 为 true 时清空条件
+     */
+    function applyFilter(options) {
+        var opts = options || {};
+        $('qKeyword').value = opts.reset ? '' : (opts.keyword || '');
+        $('qType').value = opts.reset ? '' : (opts.deviceType || '');
+        $('qStatus').value = opts.reset ? '' : (opts.status || '');
+        if (opts.reset) {
+            $('qZone').value = '';
+        } else if (opts.zone !== undefined) {
+            $('qZone').value = opts.zone || '';
+        }
+        state.pageNum = 1;
+        loadList();
     }
 
     document.addEventListener('DOMContentLoaded', function () {
         bindEvents();
-        refresh();
+        // 默认首页是总览，设备数据等切到本页再拉，避免首屏并发过多请求
+        if (!$('tab-device').classList.contains('hidden')) {
+            refresh();
+        }
+        document.addEventListener('tab:shown', function (e) {
+            if (e.detail === 'device') {
+                refresh();
+            }
+        });
+        // 设备在监控页被启停后，回到本页时列表状态要是新的
+        document.addEventListener('data:changed', function () {
+            if (!$('tab-device').classList.contains('hidden')) {
+                refresh();
+            }
+        });
     });
+
+    /* 对其他模块开放的入口 */
+    App.openDeviceDetail = openDetail;
+    App.filterDevices = applyFilter;
+    App.showDeviceZoneView = function () {
+        switchView('zone');
+    };
 })();

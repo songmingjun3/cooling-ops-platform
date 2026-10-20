@@ -26,7 +26,18 @@
         </div>
 
         <nav class="tabs">
-            <button class="tab active" data-tab="device" data-title="设备管理"
+            <button class="tab active" data-tab="dashboard" data-title="运行总览"
+                    data-sub="系统拓扑 · 设备概况 · 告警动态">
+                <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2.5" y="3" width="7.5" height="8" rx="1.6"/>
+                    <rect x="14" y="3" width="7.5" height="5" rx="1.6"/>
+                    <rect x="14" y="12" width="7.5" height="9" rx="1.6"/>
+                    <rect x="2.5" y="15" width="7.5" height="6" rx="1.6"/>
+                </svg>
+                <span class="tab-text">运行总览</span>
+            </button>
+            <button class="tab" data-tab="device" data-title="设备管理"
                     data-sub="设备台账维护 · 多条件查询 · 按区域分组">
                 <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                      stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -80,32 +91,122 @@
     <div class="main">
         <header class="app-header">
             <div class="page-title">
-                <h1 id="pageTitle">设备管理</h1>
-                <p class="sub" id="pageSub">设备台账维护 · 多条件查询 · 按区域分组</p>
+                <h1 id="pageTitle">运行总览</h1>
+                <p class="sub" id="pageSub">系统拓扑 · 设备概况 · 告警动态</p>
             </div>
-            <div class="stats" id="stats">
-                <div class="stat">
-                    <span class="stat-value" id="statTotal">-</span>
-                    <span class="stat-label">设备总数</span>
-                </div>
-                <div class="stat stat-ok">
-                    <span class="stat-value ok" id="statRunning">-</span>
-                    <span class="stat-label">运行中</span>
-                </div>
-                <div class="stat stat-warn">
-                    <span class="stat-value warn" id="statAbnormal">-</span>
-                    <span class="stat-label">故障 / 离线</span>
-                </div>
-                <div class="stat">
-                    <span class="stat-value muted" id="statZone">-</span>
-                    <span class="stat-label">覆盖区域</span>
-                </div>
+            <!-- 页头只保留全局状态提示，设备概况统一放在总览页，避免每个功能页重复 -->
+            <div class="header-meta">
+                <span class="live-dot" aria-hidden="true"></span>
+                <span id="dataUpdated">数据加载中…</span>
             </div>
         </header>
 
         <main class="container">
+            <!-- ==================== ⓪ 运行总览（大屏） ==================== -->
+            <div class="tab-panel" id="tab-dashboard">
+                <section class="kpi-row" id="kpiRow">
+                    <button class="kpi" data-kpi="total">
+                        <span class="kpi-mark kpi-mark-total"></span>
+                        <span class="kpi-body">
+                            <span class="kpi-value" id="kpiTotal">-</span>
+                            <span class="kpi-label">设备总数</span>
+                        </span>
+                    </button>
+                    <button class="kpi" data-kpi="running">
+                        <span class="kpi-mark kpi-mark-running"></span>
+                        <span class="kpi-body">
+                            <span class="kpi-value ok" id="kpiRunning">-</span>
+                            <span class="kpi-label">运行中</span>
+                        </span>
+                    </button>
+                    <button class="kpi" data-kpi="abnormal">
+                        <span class="kpi-mark kpi-mark-abnormal"></span>
+                        <span class="kpi-body">
+                            <span class="kpi-value danger" id="kpiAbnormal">-</span>
+                            <span class="kpi-label">故障 / 离线</span>
+                        </span>
+                    </button>
+                    <button class="kpi" data-kpi="maintenance">
+                        <span class="kpi-mark kpi-mark-maintenance"></span>
+                        <span class="kpi-body">
+                            <span class="kpi-value warn" id="kpiMaintenance">-</span>
+                            <span class="kpi-label">维护中</span>
+                        </span>
+                    </button>
+                    <button class="kpi" data-kpi="alarm">
+                        <span class="kpi-mark kpi-mark-alarm"></span>
+                        <span class="kpi-body">
+                            <span class="kpi-value violet" id="kpiAlarm">-</span>
+                            <span class="kpi-label">未处理告警</span>
+                        </span>
+                    </button>
+                    <button class="kpi" data-kpi="zone">
+                        <span class="kpi-mark kpi-mark-zone"></span>
+                        <span class="kpi-body">
+                            <span class="kpi-value primary" id="kpiZone">-</span>
+                            <span class="kpi-label">覆盖区域</span>
+                        </span>
+                    </button>
+                </section>
+
+                <!-- 设备连接关系拓扑：左冷却水回路、右冷冻水回路 -->
+                <section class="card screen-card">
+                    <div class="card-head">
+                        <h2>设备连接关系
+                            <span class="hint">冷却水回路 冷却塔 → 冷却水泵 → 冷水机组；冷冻水回路 冷水机组 → 冷冻水泵 → 精密空调</span>
+                        </h2>
+                        <div class="legend">
+                            <span class="legend-item"><i class="lg-dot lg-running"></i>运行</span>
+                            <span class="legend-item"><i class="lg-dot lg-fault"></i>故障</span>
+                            <span class="legend-item"><i class="lg-dot lg-stop"></i>停机</span>
+                            <span class="legend-item"><i class="lg-dot lg-maint"></i>维护</span>
+                            <span class="legend-item"><i class="lg-line lg-supply"></i>供水</span>
+                            <span class="legend-item"><i class="lg-line lg-return"></i>回水</span>
+                        </div>
+                    </div>
+                    <!-- 宽屏放得下五列，窄屏才提示可横向滑动 -->
+                    <p class="topology-tip">← 左右拖动查看完整拓扑 →</p>
+                    <div class="topology-scroll">
+                        <div id="topology" class="topology">
+                            <p class="empty">拓扑加载中…</p>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="dash-row">
+                    <section class="card">
+                        <div class="card-head">
+                            <h2>设备概况 <span class="hint">按类型 × 状态</span></h2>
+                            <a class="btn btn-sm" href="?tab=device">设备台账</a>
+                        </div>
+                        <div id="typeMatrix" class="matrix-wrap">
+                            <p class="empty">加载中…</p>
+                        </div>
+                    </section>
+
+                    <section class="card">
+                        <div class="card-head">
+                            <h2>区域分布</h2>
+                        </div>
+                        <div id="zoneSummary" class="zone-summary">
+                            <p class="empty">加载中…</p>
+                        </div>
+                    </section>
+
+                    <section class="card">
+                        <div class="card-head">
+                            <h2>最近告警</h2>
+                            <a class="btn btn-sm" href="?tab=alarm">全部告警</a>
+                        </div>
+                        <ul id="recentAlarms" class="alarm-mini">
+                            <li class="empty">加载中…</li>
+                        </ul>
+                    </section>
+                </div>
+            </div>
+
             <!-- ==================== ① 设备管理 ==================== -->
-            <div class="tab-panel" id="tab-device">
+            <div class="tab-panel hidden" id="tab-device">
                 <section class="card toolbar">
                     <div class="field">
                         <label for="qKeyword">关键字</label>
@@ -332,8 +433,11 @@
                             </div>
                         </div>
                     </div>
-                    <div id="trendChart" class="trend-chart">
-                        <p class="empty">请选择设备与参数后点击「查看趋势」</p>
+                    <div class="trend-wrap">
+                        <div id="trendChart" class="trend-chart">
+                            <p class="empty">请选择设备与参数后点击「查看趋势」</p>
+                        </div>
+                        <div id="trendTip" class="trend-tip hidden"></div>
                     </div>
                     <p class="hint" id="trendMeta"></p>
                 </section>
@@ -499,9 +603,27 @@
     </div>
 </div>
 
+<!-- 二次确认（替代原生 confirm，保证样式统一且可被端到端测试驱动） -->
+<div class="modal hidden" id="confirmModal">
+    <div class="modal-panel modal-panel-sm">
+        <div class="modal-head">
+            <h3 id="confirmTitle">操作确认</h3>
+            <button class="icon-btn" id="confirmClose">×</button>
+        </div>
+        <div class="modal-body">
+            <p class="confirm-text" id="confirmText"></p>
+        </div>
+        <div class="modal-foot">
+            <button class="btn" id="confirmCancel">取消</button>
+            <button class="btn btn-danger" id="confirmOk">确定</button>
+        </div>
+    </div>
+</div>
+
 <div class="toast hidden" id="toast"></div>
 
 <script src="/js/common.js"></script>
+<script src="/js/dashboard.js"></script>
 <script src="/js/device.js"></script>
 <script src="/js/monitor.js"></script>
 <script src="/js/alarm.js"></script>
